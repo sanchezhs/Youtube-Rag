@@ -31,7 +31,6 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -67,9 +66,9 @@ export function NotificationBell() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
       >
-        <Bell className={cn('h-5 w-5', isConnected ? 'text-gray-600' : 'text-gray-400')} />
+        <Bell className={cn('h-5 w-5', isConnected ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600')} />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -79,19 +78,17 @@ export function NotificationBell() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+        <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900">Notifications</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
               {isConnected ? (
-                <span className="flex items-center gap-1 text-xs text-green-600">
-                  <Wifi className="h-3 w-3" />
+                <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                   Live
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <WifiOff className="h-3 w-3" />
+                <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
                   Reconnecting...
                 </span>
               )}
@@ -100,19 +97,19 @@ export function NotificationBell() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   title="Mark all as read"
                 >
-                  <CheckCheck className="h-4 w-4 text-gray-500" />
+                  <CheckCheck className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                 </button>
               )}
               {notifications.length > 0 && (
                 <button
                   onClick={handleClearAll}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   title="Clear all"
                 >
-                  <Trash2 className="h-4 w-4 text-gray-500" />
+                  <Trash2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                 </button>
               )}
             </div>
@@ -121,21 +118,21 @@ export function NotificationBell() {
           {/* Notifications List */}
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-500">
-                <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+              <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                 <p>No notifications yet</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   You&apos;ll be notified when tasks complete or fail
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
                     className={cn(
-                      'px-4 py-3 hover:bg-gray-50 transition-colors',
-                      !notification.read && 'bg-blue-50/50'
+                      'px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors',
+                      !notification.read && 'bg-blue-50/50 dark:bg-blue-900/10'
                     )}
                   >
                     <div className="flex gap-3">
@@ -148,8 +145,8 @@ export function NotificationBell() {
                             className={cn(
                               'text-sm',
                               !notification.read
-                                ? 'font-semibold text-gray-900'
-                                : 'text-gray-700'
+                                ? 'font-semibold text-gray-900 dark:text-gray-100'
+                                : 'text-gray-700 dark:text-gray-300'
                             )}
                           >
                             {notification.title}
@@ -158,25 +155,25 @@ export function NotificationBell() {
                             {!notification.read && (
                               <button
                                 onClick={() => markAsRead(notification.id)}
-                                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                 title="Mark as read"
                               >
-                                <Check className="h-3.5 w-3.5 text-gray-400" />
+                                <Check className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
                               </button>
                             )}
                             <button
                               onClick={() => deleteNotification(notification.id)}
-                              className="p-1 rounded hover:bg-gray-200 transition-colors"
+                              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                               title="Delete"
                             >
-                              <X className="h-3.5 w-3.5 text-gray-400" />
+                              <X className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
                             </button>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-0.5">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
                           {notification.message}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                           {formatDateTime(notification.timestamp)}
                         </p>
                       </div>
@@ -189,8 +186,8 @@ export function NotificationBell() {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
-              <p className="text-xs text-gray-500 text-center">
+            <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                 {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
                 {unreadCount > 0 && ` • ${unreadCount} unread`}
               </p>

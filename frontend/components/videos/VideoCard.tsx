@@ -3,8 +3,8 @@
 import type { VideoResponse } from '@/types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { formatDate, formatDuration, truncate } from '@/lib/utils';
-import { Clock, Calendar, Download, FileText } from 'lucide-react';
+import { formatDate, formatDuration } from '@/lib/utils';
+import { Calendar, Download, FileText } from 'lucide-react';
 
 interface VideoCardProps {
   video: VideoResponse;
@@ -13,8 +13,11 @@ interface VideoCardProps {
 
 export function VideoCard({ video, onClick }: VideoCardProps) {
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={onClick}>
-      <div className="aspect-video bg-gray-200 relative">
+    <Card 
+      className="cursor-pointer hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow" 
+      onClick={onClick}
+    >
+      <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative">
         <img
           src={`https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
           alt={video.title || 'Video thumbnail'}
@@ -27,11 +30,11 @@ export function VideoCard({ video, onClick }: VideoCardProps) {
         )}
       </div>
       <CardContent className="p-3">
-        <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-2">
+        <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm line-clamp-2 mb-2">
           {video.title || 'Untitled Video'}
         </h3>
         
-        <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
           <Calendar className="h-3 w-3" />
           <span>{video.published_at ? formatDate(video.published_at) : 'Unknown'}</span>
         </div>

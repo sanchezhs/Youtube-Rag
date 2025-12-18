@@ -67,7 +67,7 @@ def update_task_state(db: Session, task: PipelineTask, progress: int, current_re
     """
     task.progress = progress
     if current_result:
-        task.result   = current_result
+        task.result = current_result
     db.commit()
 
 def fetch_next_task(db: Session) -> PipelineTask | None:
@@ -126,7 +126,7 @@ def run_task(task: PipelineTask, db: Session):
     task.status = TaskStatus.RUNNING
     task.started_at = datetime.now(timezone.utc)
     task.progress = 0 # Ensure we start at 0
-    task.result = {"status_message": "Initializing..."}
+    task.result = "Initializing..."
     db.commit()
 
     try:

@@ -55,7 +55,7 @@ export function VideoList() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500 dark:text-red-400">{error}</p>
         <Button onClick={fetchData} variant="secondary">
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
@@ -74,7 +74,7 @@ export function VideoList() {
             onChange={(e) => setSelectedChannel(e.target.value)}
             className="w-48"
           />
-          <p className="text-gray-600">{videos.length} videos</p>
+          <p className="text-gray-600 dark:text-gray-400">{videos.length} videos</p>
         </div>
         <Button onClick={fetchData} variant="ghost" size="sm">
           <RefreshCw className="h-4 w-4" />
@@ -82,8 +82,8 @@ export function VideoList() {
       </div>
 
       {videos.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <p className="text-gray-500">No videos found</p>
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+          <p className="text-gray-500 dark:text-gray-400">No videos found</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

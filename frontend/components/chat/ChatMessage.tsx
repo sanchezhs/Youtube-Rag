@@ -34,13 +34,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
       <div
         className={cn(
           'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-          isUser ? 'bg-primary-600' : 'bg-gray-200'
+          isUser ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
         )}
       >
         {isUser ? (
           <User className="h-4 w-4 text-white" />
         ) : (
-          <Bot className="h-4 w-4 text-gray-600" />
+          <Bot className="h-4 w-4 text-gray-600 dark:text-gray-400" />
         )}
       </div>
       <div className={cn('max-w-[80%]', isUser ? 'items-end' : 'items-start')}>
@@ -48,7 +48,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
         <div
           className={cn(
             'rounded-2xl px-4 py-3',
-            isUser ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-900'
+            isUser 
+              ? 'bg-primary-600 text-white' 
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
           )}
         >
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
@@ -59,7 +61,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           <div className="mt-2">
             <button
               onClick={() => setShowSources(!showSources)}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors mb-2"
+              className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors mb-2"
             >
               {showSources ? (
                 <>

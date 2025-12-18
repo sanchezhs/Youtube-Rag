@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { chatApi } from '@/lib/api';
 import type { ChatSessionResponse } from '@/types';
-import { cn, formatDateTime, truncate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
 import { MessageSquare, Trash2 } from 'lucide-react';
 
@@ -39,7 +39,7 @@ export function ChatSessionList({
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Delete this chat session?')) {
-      await onDeleteSession(id);
+      onDeleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
     }
   };
@@ -54,7 +54,7 @@ export function ChatSessionList({
 
   if (sessions.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500 text-sm">
+      <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
         No chat history yet
       </div>
     );
@@ -62,7 +62,7 @@ export function ChatSessionList({
 
   return (
     <div className="space-y-1">
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
         Recent Chats
       </h3>
       {sessions.map((session) => (
@@ -72,8 +72,8 @@ export function ChatSessionList({
           className={cn(
             'group flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors',
             currentSessionId === session.id
-              ? 'bg-primary-100 text-primary-900'
-              : 'hover:bg-gray-200 text-gray-700'
+              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-100'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
           )}
         >
           <MessageSquare className="h-4 w-4 flex-shrink-0" />
@@ -81,15 +81,15 @@ export function ChatSessionList({
             <p className="text-sm font-medium truncate">
               {session.title || 'Untitled Chat'}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {session.message_count} messages
             </p>
           </div>
           <button
             onClick={(e) => handleDelete(e, session.id)}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-300 transition-all"
+            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700 transition-all"
           >
-            <Trash2 className="h-3 w-3 text-gray-500" />
+            <Trash2 className="h-3 w-3 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
       ))}

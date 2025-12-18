@@ -24,9 +24,9 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gray-900">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gray-900 dark:bg-gray-950">
       <div className="flex h-full flex-col">
-        <div className="flex h-16 items-center gap-2 px-6 border-b border-gray-800">
+        <div className="flex h-16 items-center gap-2 px-6 border-b border-gray-800 dark:border-gray-800">
           <Youtube className="h-8 w-8 text-red-500" />
           <span className="text-xl font-bold text-white">YouTube RAG</span>
         </div>

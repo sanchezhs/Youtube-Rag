@@ -43,11 +43,11 @@ export function VideoDetail({ videoId, onClose }: VideoDetailProps) {
         </div>
       ) : error ? (
         <div className="text-center py-8">
-          <p className="text-red-500">{error}</p>
+          <p className="text-red-500 dark:text-red-400">{error}</p>
         </div>
       ) : video ? (
         <div className="space-y-6">
-          <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
+          <div className="aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
             <img
               src={`https://img.youtube.com/vi/${video.video_id}/maxresdefault.jpg`}
               alt={video.title || 'Video thumbnail'}
@@ -56,20 +56,22 @@ export function VideoDetail({ videoId, onClose }: VideoDetailProps) {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               {video.title || 'Untitled Video'}
             </h3>
             {video.description && (
-              <p className="text-sm text-gray-600 line-clamp-3">{video.description}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                {video.description}
+              </p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Clock className="h-4 w-4" />
               <span>Duration: {formatDuration(video.duration)}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Layers className="h-4 w-4" />
               <span>{video.chunk_count} chunks, {video.segment_count} segments</span>
             </div>
@@ -86,12 +88,12 @@ export function VideoDetail({ videoId, onClose }: VideoDetailProps) {
             </Badge>
           </div>
 
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <a
               href={`https://www.youtube.com/watch?v=${video.video_id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+              className="inline-flex items-center gap-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
             >
               <ExternalLink className="h-4 w-4" />
               Watch on YouTube

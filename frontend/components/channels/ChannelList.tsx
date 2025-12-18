@@ -52,7 +52,7 @@ export function ChannelList() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500 dark:text-red-400">{error}</p>
         <Button onClick={fetchChannels} variant="secondary">
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
@@ -64,7 +64,7 @@ export function ChannelList() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <p className="text-gray-600">{channels.length} channels</p>
+        <p className="text-gray-600 dark:text-gray-400">{channels.length} channels</p>
         <div className="flex gap-2">
           <Button onClick={fetchChannels} variant="ghost" size="sm">
             <RefreshCw className="h-4 w-4" />
@@ -77,8 +77,8 @@ export function ChannelList() {
       </div>
 
       {channels.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <p className="text-gray-500 mb-4">No channels added yet</p>
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">No channels added yet</p>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Your First Channel

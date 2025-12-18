@@ -13,16 +13,16 @@
   --color-primary-900: #1e3a8a;
 }
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 html,
 body {
   height: 100%;
 }
 
 body {
-  background-color: var(--color-gray-50);
-  color: var(--color-gray-900);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply dark:bg-gray-950 dark:text-gray-100;
 }
 
 /* Custom scrollbar */
@@ -32,16 +32,15 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background-color: var(--color-gray-100);
+  @apply bg-gray-100 dark:bg-gray-800;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-gray-300);
-  border-radius: 9999px;
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-gray-400);
+  @apply bg-gray-400 dark:bg-gray-500;
 }
 
 /* Line clamp utility */

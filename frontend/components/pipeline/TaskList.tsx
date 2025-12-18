@@ -72,7 +72,6 @@ function parseTaskResult(result: string | null | undefined): ParsedResult {
   }
 
   // Check if it looks like an embedding (starts with { followed by numbers)
-  // Embeddings look like: {-0.020788,0.050129,...} or [-0.020788,0.050129,...]
   const embeddingPattern = /^[\[{]-?\d+\.\d+,/;
   if (embeddingPattern.test(result.trim())) {
     return { 
@@ -91,7 +90,7 @@ function parseTaskResult(result: string | null | undefined): ParsedResult {
       return { 
         type: 'embedding', 
         data: null,
-        rawPreview: `[${parsed.slice(0, 5).map(n => n.toFixed(4)).join(', ')}...] (${parsed.length} dimensions)`
+        rawPreview: `[${parsed.slice(0, 5).map((n: number) => n.toFixed(4)).join(', ')}...] (${parsed.length} dimensions)`
       };
     }
     
@@ -109,41 +108,36 @@ function parseTaskResult(result: string | null | undefined): ParsedResult {
 
 function TaskStepDisplay({ stepInfo }: { stepInfo: TaskStepInfo }) {
   return (
-    <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
       <div className="flex items-start gap-2">
-        <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+        <Info className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          {/* Step name/title */}
           {stepInfo.step && (
-            <p className="font-medium text-blue-900 text-sm">
+            <p className="font-medium text-blue-900 dark:text-blue-100 text-sm">
               {stepInfo.step}
             </p>
           )}
           
-          {/* Step progress (e.g., Step 2 of 5) */}
           {stepInfo.current_step !== undefined && stepInfo.total_steps !== undefined && (
-            <p className="text-xs text-blue-700 mt-0.5">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
               Step {stepInfo.current_step} of {stepInfo.total_steps}
             </p>
           )}
           
-          {/* Message */}
           {stepInfo.message && (
-            <p className="text-sm text-blue-800 mt-1">
+            <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
               {stepInfo.message}
             </p>
           )}
           
-          {/* Details */}
           {stepInfo.details && (
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
               {stepInfo.details}
             </p>
           )}
           
-          {/* Video info if available */}
           {(stepInfo.video_id || stepInfo.video_title) && (
-            <div className="mt-2 text-xs text-blue-600">
+            <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
               {stepInfo.video_title && (
                 <p className="truncate">Video: {stepInfo.video_title}</p>
               )}
@@ -153,23 +147,21 @@ function TaskStepDisplay({ stepInfo }: { stepInfo: TaskStepInfo }) {
             </div>
           )}
           
-          {/* Channel info if available */}
           {stepInfo.channel && (
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
               Channel: {stepInfo.channel}
             </p>
           )}
           
-          {/* Processed count if available */}
           {stepInfo.processed !== undefined && stepInfo.total !== undefined && (
             <div className="mt-2">
-              <div className="flex items-center justify-between text-xs text-blue-700 mb-1">
+              <div className="flex items-center justify-between text-xs text-blue-700 dark:text-blue-300 mb-1">
                 <span>Processing</span>
                 <span>{stepInfo.processed} / {stepInfo.total}</span>
               </div>
-              <div className="w-full bg-blue-200 rounded-full h-1.5">
+              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
                 <div
-                  className="bg-blue-600 h-1.5 rounded-full transition-all"
+                  className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full transition-all"
                   style={{ 
                     width: `${stepInfo.total > 0 ? (stepInfo.processed / stepInfo.total) * 100 : 0}%` 
                   }}
@@ -198,44 +190,44 @@ function EmbeddingResultDisplay({ preview, fullResult }: { preview: string; full
   };
 
   return (
-    <div className="mt-3 p-3 bg-purple-50 border border-purple-100 rounded-lg">
+    <div className="mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg">
       <div className="flex items-start gap-2">
-        <Info className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+        <Info className="h-4 w-4 text-purple-500 dark:text-purple-400 mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <p className="font-medium text-purple-900 text-sm">
+            <p className="font-medium text-purple-900 dark:text-purple-100 text-sm">
               Embedding Vector Generated
             </p>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleCopy}
-                className="p-1 rounded hover:bg-purple-200 transition-colors"
+                className="p-1 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
                 title="Copy embedding"
               >
                 {copied ? (
-                  <Check className="h-3.5 w-3.5 text-green-600" />
+                  <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
                 ) : (
-                  <Copy className="h-3.5 w-3.5 text-purple-500" />
+                  <Copy className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
                 )}
               </button>
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="p-1 rounded hover:bg-purple-200 transition-colors"
+                className="p-1 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
                 title={expanded ? 'Collapse' : 'Expand'}
               >
                 {expanded ? (
-                  <ChevronUp className="h-3.5 w-3.5 text-purple-500" />
+                  <ChevronUp className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5 text-purple-500" />
+                  <ChevronDown className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
                 )}
               </button>
             </div>
           </div>
-          <p className="text-xs text-purple-600 mt-1 font-mono">
+          <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-mono">
             {preview}
           </p>
           {expanded && (
-            <div className="mt-2 p-2 bg-purple-100 rounded text-xs font-mono text-purple-800 max-h-32 overflow-auto break-all">
+            <div className="mt-2 p-2 bg-purple-100 dark:bg-purple-900/40 rounded text-xs font-mono text-purple-800 dark:text-purple-200 max-h-32 overflow-auto break-all">
               {fullResult}
             </div>
           )}
@@ -247,28 +239,27 @@ function EmbeddingResultDisplay({ preview, fullResult }: { preview: string; full
 
 function CompletedResultDisplay({ stepInfo }: { stepInfo: TaskStepInfo }) {
   return (
-    <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg">
+    <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg">
       <div className="flex items-start gap-2">
-        <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+        <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400 mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           {stepInfo.message && (
-            <p className="text-sm text-green-800">
+            <p className="text-sm text-green-800 dark:text-green-200">
               {stepInfo.message}
             </p>
           )}
           {stepInfo.processed !== undefined && (
-            <p className="text-xs text-green-600 mt-1">
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
               Processed: {stepInfo.processed} items
             </p>
           )}
-          {/* Display any other relevant completion info */}
           {Object.entries(stepInfo).map(([key, value]) => {
             if (['message', 'processed', 'step', 'current_step', 'total_steps'].includes(key)) {
               return null;
             }
             if (value !== null && value !== undefined && typeof value !== 'object') {
               return (
-                <p key={key} className="text-xs text-green-600 mt-0.5">
+                <p key={key} className="text-xs text-green-600 dark:text-green-400 mt-0.5">
                   {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: {String(value)}
                 </p>
               );
@@ -286,17 +277,17 @@ function TextResultDisplay({ text }: { text: string }) {
   const isLong = text.length > 200;
   
   return (
-    <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
       <div className="flex items-start gap-2">
-        <Info className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
+        <Info className="h-4 w-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-700 break-words">
+          <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
             {expanded || !isLong ? text : `${text.slice(0, 200)}...`}
           </p>
           {isLong && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-xs text-primary-600 hover:text-primary-700 mt-1"
+              className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mt-1"
             >
               {expanded ? 'Show less' : 'Show more'}
             </button>
@@ -353,18 +344,18 @@ function DeleteConfirmDialog({ isOpen, taskId, taskType, onConfirm, onCancel, is
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+      <div className="fixed inset-0 bg-black/50 dark:bg-black/70" onClick={onCancel} />
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-red-100 rounded-full">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
+          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+            <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">Delete Task</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete Task</h3>
         </div>
-        <p className="text-gray-600 mb-2">
+        <p className="text-gray-600 dark:text-gray-400 mb-2">
           Are you sure you want to delete this task?
         </p>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
           <span className="font-medium">Type:</span> {taskType}<br />
           <span className="font-medium">ID:</span> {taskId.slice(0, 8)}...
         </p>
@@ -435,7 +426,6 @@ export function TaskList() {
     setDeleteConfirm({ isOpen: false, task: null });
   };
 
-  // Check if a task can be deleted (not running)
   const canDeleteTask = (task: PipelineTaskResponse) => {
     return task.status !== 'running';
   };
@@ -444,7 +434,7 @@ export function TaskList() {
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <h2 className="text-lg font-semibold">Pipeline Tasks</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Pipeline Tasks</h2>
           <div className="flex items-center gap-2">
             <Select
               options={statusOptions}
@@ -463,13 +453,16 @@ export function TaskList() {
               <Spinner />
             </div>
           ) : tasks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               No tasks found
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {tasks.map((task) => (
-                <div key={task.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div 
+                  key={task.id} 
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <Badge variant={statusVariants[task.status]}>
@@ -478,10 +471,12 @@ export function TaskList() {
                           {task.status}
                         </span>
                       </Badge>
-                      <span className="font-medium text-gray-900">{task.task_type}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {task.task_type}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {formatDateTime(task.created_at)}
                       </span>
                       <button
@@ -489,8 +484,8 @@ export function TaskList() {
                         disabled={!canDeleteTask(task)}
                         className={`p-1.5 rounded-lg transition-colors ${
                           canDeleteTask(task)
-                            ? 'hover:bg-red-100 text-gray-400 hover:text-red-600'
-                            : 'text-gray-200 cursor-not-allowed'
+                            ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400'
+                            : 'text-gray-200 dark:text-gray-700 cursor-not-allowed'
                         }`}
                         title={canDeleteTask(task) ? 'Delete task' : 'Cannot delete running task'}
                       >
@@ -500,42 +495,44 @@ export function TaskList() {
                   </div>
                   
                   {/* Task ID */}
-                  <p className="text-xs text-gray-400 mb-2 font-mono">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 font-mono">
                     ID: {task.id}
                   </p>
                   
                   {/* Progress bar for running tasks */}
                   {task.status === 'running' && (
                     <div className="mt-2">
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
                         <span>Progress</span>
                         <span>{task.progress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div
-                          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                          className="bg-primary-600 dark:bg-primary-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${task.progress}%` }}
                         />
                       </div>
                     </div>
                   )}
                   
-                  {/* Result display - handles all types including embeddings */}
+                  {/* Result display */}
                   <TaskResultDisplay result={task.result} status={task.status} />
 
                   {/* Error message for failed tasks */}
                   {task.error_message && (
-                    <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+                    <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
                       <div className="flex items-start gap-2">
-                        <XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-red-700 break-words">{task.error_message}</p>
+                        <XCircle className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-red-700 dark:text-red-300 break-words">
+                          {task.error_message}
+                        </p>
                       </div>
                     </div>
                   )}
                   
                   {/* Time info */}
                   {(task.started_at || task.completed_at) && (
-                    <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+                    <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                       {task.started_at && (
                         <span>Started: {formatDateTime(task.started_at)}</span>
                       )}

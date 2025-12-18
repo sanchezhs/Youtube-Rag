@@ -91,9 +91,9 @@ export function CreateTaskModal({ isOpen, onClose, onCreated }: CreateTaskModalP
                 type="checkbox"
                 checked={download}
                 onChange={(e) => setDownload(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400"
               />
-              <span className="text-sm text-gray-700">Download videos</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Download videos</span>
             </label>
           </>
         )}
@@ -107,7 +107,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreated }: CreateTaskModalP
           />
         )}
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="secondary" onClick={handleClose}>

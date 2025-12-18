@@ -19,12 +19,12 @@ export function SourceCard({ source, compact = false }: SourceCardProps) {
         href={source.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
+        className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full text-xs text-gray-700 dark:text-gray-300 transition-colors"
       >
         <Play className="h-3 w-3" />
         <span>{formatDuration(Math.floor(source.start))}</span>
-        <span className="text-gray-400">•</span>
-        <span className="text-green-600">{relevancePercent}%</span>
+        <span className="text-gray-400 dark:text-gray-500">•</span>
+        <span className="text-green-600 dark:text-green-400">{relevancePercent}%</span>
         <ExternalLink className="h-3 w-3" />
       </a>
     );
@@ -35,7 +35,7 @@ export function SourceCard({ source, compact = false }: SourceCardProps) {
       href={source.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex-shrink-0 w-44 rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow bg-white"
+      className="flex-shrink-0 w-44 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800"
     >
       <div className="relative">
         <img
@@ -49,22 +49,22 @@ export function SourceCard({ source, compact = false }: SourceCardProps) {
         </div>
       </div>
       <div className="p-2">
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             {formatDuration(Math.floor(source.start))} - {formatDuration(Math.floor(source.end))}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
             <div
               className="bg-green-500 h-1.5 rounded-full"
               style={{ width: `${relevancePercent}%` }}
             />
           </div>
-          <span className="text-xs font-medium text-gray-600">{relevancePercent}%</span>
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{relevancePercent}%</span>
         </div>
-        <p className="text-xs text-gray-400 mt-1 truncate font-mono">
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate font-mono">
           {source.video_id}
         </p>
       </div>
