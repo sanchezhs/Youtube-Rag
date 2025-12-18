@@ -52,12 +52,23 @@ def reset_stuck_tasks():
         ).scalars().all()
         
         if stuck_tasks:
-            logger.warning(f"⚠️ Found {len(stuck_tasks)} stuck tasks. Resetting to FAILED.")
+            logger.warning(f"Found {len(stuck_tasks)} stuck tasks. Resetting to FAILED.")
             for task in stuck_tasks:
                 task.status = TaskStatus.FAILED
                 task.error_message = "Worker crashed or restarted during execution"
                 task.completed_at = datetime.now(timezone.utc)
             db.commit()
+
+def update_task_state(db: Session, task: PipelineTask, progress: int, current_result: str | None):
+    """
+    Updates the task with info for the frontend.
+    
+    1. progress: 0-100 integer bar.
+    """
+    task.progress = progress
+    if current_result:
+        task.result   = current_result
+    db.commit()
 
 def fetch_next_task(db: Session) -> PipelineTask | None:
     """
@@ -72,28 +83,41 @@ def fetch_next_task(db: Session) -> PipelineTask | None:
     )
     return db.execute(stmt).scalar_one_or_none()
 
-def process_single_video(task_id: int, video_id: str, db: Session) -> bool:
+def process_single_video(task: PipelineTask, video_id: str, db: Session, base_progress: int, segment_size: float) -> bool:
     """
     Runs the full RAG pipeline for a SINGLE video.
-    Returns True if successful, False otherwise.
+    
+    Args:
+        base_progress: The progress % where this video starts (e.g., 10)
+        segment_size: The total % 'width' this video takes up (e.g., 90 if 1 video)
     """
     try:
-        # 1. Transcribe (Pass list of 1)
-        t_res = transcribe_flow(video_ids=[video_id], task_id=task_id)
+        # Calculate sub-steps within the allocated segment size
+        # Step 1: Transcribe (Starts immediately at base)
+        p_transcribe = base_progress
+        update_task_state(db, task, p_transcribe, f"Transcribing video: {video_id}...")
+        
+        t_res = transcribe_flow(video_ids=[video_id], task_id=str(task.id))
         if t_res['transcribed'] == 0 and t_res['failed'] > 0:
             raise Exception("Transcription failed")
 
-        # 2. Chunk (Pass list of 1)
-        chunk_flow(video_ids=[video_id], task_id=task_id)
+        # Step 2: Chunk (Approx 40% through this video's segment)
+        p_chunk = int(base_progress + (segment_size * 0.4))
+        update_task_state(db, task, p_chunk, f"Chunking text for: {video_id}...")
         
-        # 3. Embed (Pass list of 1)
-        embed_flow(video_ids=[video_id], task_id=task_id)
+        chunk_flow(video_ids=[video_id], task_id=str(task.id))
+        
+        # Step 3: Embed (Approx 70% through this video's segment)
+        p_embed = int(base_progress + (segment_size * 0.7))
+        update_task_state(db, task, p_embed, f"Generating embeddings for: {video_id}...")
+        
+        embed_flow(video_ids=[video_id], task_id=str(task.id))
 
-        logger.info(f"[{task_id}] Video {video_id} fully processed and ready for RAG.")
+        logger.info(f"[{task.id}] Video {video_id} fully processed.")
         return True
 
     except Exception as e:
-        logger.error(f"[{task_id}] Failed to process video {video_id}: {e}")
+        logger.error(f"[{task.id}] Failed to process video {video_id}: {e}")
         return False
 
 def run_task(task: PipelineTask, db: Session):
@@ -101,60 +125,72 @@ def run_task(task: PipelineTask, db: Session):
     
     task.status = TaskStatus.RUNNING
     task.started_at = datetime.now(timezone.utc)
+    task.progress = 0 # Ensure we start at 0
+    task.result = {"status_message": "Initializing..."}
     db.commit()
 
     try:
-        # --- PHASE 1: INGEST (Batch Operation) ---
-        logger.info(f"[{task.id}] Phase 1: Ingesting Channel")
+        # --- PHASE 1: INGEST ---
+        update_task_state(db, task, 5, "Ingesting channel metadata and audio...")
         ingest_result = ingest_channel_flow(
             channel_url=task.request.get("channel_url"),
             max_videos=task.request.get("max_videos", 10),
             download=task.request.get("download", True),
-            task_id=task.id
+            task_id=str(task.id)
         )
         
         video_ids = ingest_result.get("video_ids", [])
         total_videos = len(video_ids)
-
+        
         if not video_ids:
             logger.warning(f"[{task.id}] No videos found.")
             task.status = TaskStatus.COMPLETED
             task.progress = 100
             task.completed_at = datetime.now(timezone.utc)
+            update_task_state(db, task, 100, "Completed. No new videos found.")
             return
 
-        # --- PHASE 2: VERTICAL PIPELINE (Per Video) ---
-        logger.info(f"[{task.id}] Phase 2: Processing {total_videos} videos sequentially")
+        update_task_state(db, task, 10, f"Found {total_videos} new videos. Starting processing...")
+
+        # --- PHASE 2: PROCESSING LOOP ---
+        logger.info(f"[{task.id}] Processing {total_videos} videos sequentially")
         
         success_count = 0
         
-        for index, video_id in enumerate(video_ids, start=1):
+        # We have 90% of the bar left (10% to 100%)
+        start_pct = 10
+        pct_per_video = 90.0 / total_videos
+        
+        for index, video_id in enumerate(video_ids):
             db.refresh(task) 
             if task.status == TaskStatus.FAILED: 
                 logger.info("Task cancelled externally.")
                 break
 
-            is_success = process_single_video(task.id, video_id, db)
+            # Calculate base progress for THIS video
+            # e.g., Video 0 starts at 10. Video 1 starts at 10 + 45 = 55.
+            current_base = int(start_pct + (index * pct_per_video))
+            
+            # Pass the task object, base, and width to the helper
+            is_success = process_single_video(task, video_id, db, current_base, pct_per_video)
             
             if is_success:
                 success_count += 1
 
-            progress_pct = int((index / total_videos) * 100)
-            task.progress = progress_pct
-            db.commit()
-
-            logger.info(f"Progress: {progress_pct}%")
-
         task.completed_at = datetime.now(timezone.utc)
+        final_msg = f"Finished. {success_count}/{total_videos} videos processed successfully."
         
         if success_count == 0 and total_videos > 0:
             task.status = TaskStatus.FAILED
             task.error_message = "All videos failed to process."
+            update_task_state(db, task, 100, "Failed. See logs.")
         elif success_count < total_videos:
             task.status = TaskStatus.COMPLETED
             task.error_message = f"Completed with errors. {success_count}/{total_videos} processed."
+            update_task_state(db, task, 100, final_msg)
         else:
             task.status = TaskStatus.COMPLETED
+            update_task_state(db, task, 100, final_msg)
             
         logger.info(f"Task {task.id} finished. {success_count}/{total_videos} succeeded.")
 
@@ -164,6 +200,7 @@ def run_task(task: PipelineTask, db: Session):
         task.status = TaskStatus.FAILED
         task.error_message = str(e)
         task.completed_at = datetime.now(timezone.utc)
+        update_task_state(db, task, task.progress, "Critical System Error")
 
     finally:
         db.commit()
@@ -174,11 +211,12 @@ def run_embedding(task: PipelineTask, db: Session):
     
     task.status = TaskStatus.RUNNING
     task.started_at = datetime.now(timezone.utc)
-    db.commit()
+    update_task_state(db, task, 10, "Calculating embedding...")
 
     try:
         task.result = embed_question(task.request["question_to_embed"])
         task.status = TaskStatus.COMPLETED
+        update_task_state(db, task, 100, None)
 
     except Exception as e:
         logger.error(f"Critical Task Failure: {e}")

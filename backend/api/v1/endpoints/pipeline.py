@@ -1,8 +1,16 @@
+import asyncio
+import json
+
+from datetime import datetime, timezone
+
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+
 from sqlalchemy.orm import Session
+from sqlalchemy import delete
 
 from shared.db.session import get_db
 from shared.db.models import Channel, Video, Chunk, PipelineTask, TaskStatus
@@ -85,3 +93,96 @@ def create_task(task_request: TaskRequest, db: Session = Depends(get_db)):
         "status": task.status,
     }
 
+@router.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: UUID, db: Session = Depends(get_db)):
+    task = db.get(PipelineTask, task_id)
+
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    db.delete(task)
+    db.commit()
+
+
+# -------------------------------------------------------------------------
+# SSE Notifications
+# -------------------------------------------------------------------------
+@router.get("/events")
+async def task_events(db: Session = Depends(get_db)):
+    """
+    Server-Sent Events endpoint for real-time task notifications.
+    Streams task status changes (completed/failed) to connected clients.
+    """
+    
+    async def event_generator():
+        # Track task states we've seen
+        seen_task_states: dict[str, str] = {}
+        
+        # Initial load - mark all current completed/failed tasks as seen
+        initial_tasks = db.query(PipelineTask).filter(
+            PipelineTask.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED])
+        ).all()
+        
+        for task in initial_tasks:
+            seen_task_states[str(task.id)] = task.status.value
+        
+        # Send initial connection event
+        yield f"event: connected\ndata: {json.dumps({'message': 'Connected to notifications'})}\n\n"
+        
+        while True:
+            try:
+                # Refresh the session to get latest data
+                db.expire_all()
+                
+                # Query for completed and failed tasks
+                tasks = db.query(PipelineTask).filter(
+                    PipelineTask.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED])
+                ).order_by(PipelineTask.completed_at.desc()).limit(20).all()
+                
+                for task in tasks:
+                    task_id = str(task.id)
+                    current_status = task.status.value
+                    
+                    # Check if this is a new status we haven't seen
+                    if task_id not in seen_task_states or seen_task_states[task_id] != current_status:
+                        seen_task_states[task_id] = current_status
+                        
+                        # Only send notification if task was recently completed (within last 60 seconds)
+                        # This prevents flooding when first connecting
+                        if task.completed_at:
+                            time_diff = (datetime.now(timezone.utc) - task.completed_at).total_seconds()
+                            if time_diff < 60:
+                                event_data = {
+                                    "type": "task_update",
+                                    "task": {
+                                        "id": task_id,
+                                        "task_type": task.task_type,
+                                        "status": current_status,
+                                        "progress": task.progress,
+                                        "error_message": task.error_message,
+                                        "result": task.result,
+                                        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                                    }
+                                }
+                                yield f"event: task_update\ndata: {json.dumps(event_data)}\n\n"
+                
+                # Send heartbeat every 30 seconds to keep connection alive
+                yield f"event: heartbeat\ndata: {json.dumps({'timestamp': datetime.utcnow().isoformat()})}\n\n"
+                
+                # Wait before next check
+                await asyncio.sleep(5)
+                
+            except Exception as e:
+                # Send error event
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                await asyncio.sleep(5)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering in nginx
+        }
+    )
