@@ -81,6 +81,7 @@ Chat with your video knowledge base. Citations are linked directly to the specif
 ├── worker/        # Background processing (GPU)
 ├── shared/        # Shared DB models and utilities
 └── docker-compose.yaml
+```
 
 # TODOs
 - [High] Authentication & authorization:
