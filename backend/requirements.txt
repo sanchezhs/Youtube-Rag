@@ -1,0 +1,8 @@
+pydantic
+pydantic_settings
+fastapi
+SQLAlchemy
+psycopg2-binary
+pgvector
+openai
+uvicorn[standard]

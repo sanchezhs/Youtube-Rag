@@ -1,0 +1,12 @@
+pydantic
+pydantic_settings
+SQLAlchemy
+psycopg2-binary
+pgvector
+
+torch==2.2.2+cu121
+sentence-transformers>=2.6.0
+transformers>=4.38,<4.41
+faster-whisper
+numpy<2.0
+openai
