@@ -4,8 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from db.repositories.chat import ChatSessionRepository
+
 from shared.db.session import get_db
-from shared.db.repositories.chat import ChatSessionRepository
 from shared.db.models import PipelineTask, TaskStatus
 
 from services.rag import RAGService
@@ -32,7 +33,7 @@ def list_sessions(
 
     result = []
     for session in sessions:
-        messages = repo.get_messages(session.id, limit=1)
+        # messages = repo.get_messages(session.id, limit=1)
         result.append(
             ChatSessionResponse(
                 **session.__dict__,
@@ -57,6 +58,7 @@ def get_session(
 
     return ChatSessionDetail(
         **session.__dict__,
+        # videos=repo.get_video_by_ids(session.id),
         messages=[ChatMessageResponse(**m.__dict__) for m in messages],
         message_count=len(messages),
     )
@@ -90,6 +92,8 @@ def ask(
 
     return rag_service.ask(
         question=request.question,
+        channel_id=request.channel_id,
+        video_ids=request.video_ids,
         task_id=task.id,
         session_id=request.session_id,
         top_k=5

@@ -1,8 +1,10 @@
-from logging import getLogger
 import math
 import sqlalchemy as sa
 import logging
+
 from typing import Optional
+
+from services.llm import llm_service
 
 from shared.db.session import get_db_context
 from shared.db.models import Video, Segment
@@ -20,10 +22,6 @@ def estimate_tokens(text_len: int) -> int:
     return math.ceil(text_len / AVG_CHARS_PER_TOKEN)
 
 
-# @task(
-#     name="get-transcribed-videos",
-#     description="Get list of transcribed videos",
-# )
 def get_transcribed_videos() -> list[str]:
     """Get video IDs that have been transcribed."""
     with get_db_context() as db:
@@ -32,11 +30,6 @@ def get_transcribed_videos() -> list[str]:
         logger.info(f"Found {len(video_ids)} transcribed videos")
         return video_ids
 
-
-# @task(
-#     name="chunk-video",
-#     description="Create chunks for a single video",
-# )
 def chunk_video(video_id: str) -> dict:
     """Create chunks for a single video."""
     logger.info(f"Chunking video: {video_id}")
@@ -74,10 +67,14 @@ def chunk_video(video_id: str) -> dict:
             if estimate_tokens(current_char_len) >= TARGET_TOKENS:
                 # Create chunk
                 chunk_text = " ".join(s["text"] for s in current_segments)
+                prompt = f"Summarize the following transcript segment in one concise sentence:\n\n{chunk_text}"
+                summary = llm_service.generate(prompt).strip()
+
                 chunks.append({
                     "start_time": current_segments[0]["start_time"],
                     "end_time": current_segments[-1]["end_time"],
                     "text": chunk_text,
+                    "summary": summary,
                 })
 
                 # Handle overlap
@@ -89,10 +86,13 @@ def chunk_video(video_id: str) -> dict:
         # Final chunk
         if current_segments and estimate_tokens(current_char_len) > 50:
             chunk_text = " ".join(s["text"] for s in current_segments)
+            prompt = f"Summarize the following transcript segment in one concise sentence:\n\n{chunk_text}"
+            summary = llm_service.generate(prompt).strip()
             chunks.append({
                 "start_time": current_segments[0]["start_time"],
                 "end_time": current_segments[-1]["end_time"],
                 "text": chunk_text,
+                "summary": summary,
             })
 
         # Delete existing chunks and insert new ones
@@ -101,17 +101,19 @@ def chunk_video(video_id: str) -> dict:
             {"vid": video_id},
         )
 
-        for ch in chunks:
+        for index, ch in enumerate(chunks):
             db.execute(
                 sa.text("""
-                    INSERT INTO chunks (video_id, start_time, end_time, text)
-                    VALUES (:vid, :start, :end, :text)
+                    INSERT INTO chunks (video_id, chunk_index, start_time, end_time, text, summary)
+                    VALUES (:vid, :idx, :start, :end, :text, :summary)
                 """),
                 {
                     "vid": video_id,
+                    "idx": index,
                     "start": ch["start_time"],
                     "end": ch["end_time"],
                     "text": ch["text"],
+                    "summary": ch["summary"],
                 },
             )
 
@@ -121,10 +123,6 @@ def chunk_video(video_id: str) -> dict:
         return {"video_id": video_id, "chunks": len(chunks)}
 
 
-# @flow(
-#     name="build-chunks",
-#     description="Build semantic chunks from transcriptions",
-# )
 def chunk_flow(task_id: str, video_ids: Optional[list[str]] = None) -> dict:
     """
     Main flow for building chunks from transcriptions.

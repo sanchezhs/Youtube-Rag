@@ -39,7 +39,7 @@ export function ChatSessionList({
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Delete this chat session?')) {
-      onDeleteSession(id);
+      await onDeleteSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
     }
   };
@@ -54,16 +54,16 @@ export function ChatSessionList({
 
   if (sessions.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
-        No chat history yet
+      <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-xs">
+        No chat history
       </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-        Recent Chats
+      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-1">
+        History
       </h3>
       {sessions.map((session) => (
         <div

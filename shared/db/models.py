@@ -31,7 +31,7 @@ class TaskStatus(str, PyEnum):
     COMPLETED = "completed"
     FAILED    = "failed"
 
-class VideoStatus(str, Enum):
+class VideoStatus(str, PyEnum):
     PENDING     = "pending"
     DOWNLOADED  = "downloaded"
     TRANSCRIBED = "transcribed"
@@ -168,7 +168,6 @@ class Segment(Base):
     video: Mapped["Video"] = relationship(back_populates="segments")
 
 
-
 class Chunk(Base):
     __tablename__ = "chunks"
 
@@ -179,22 +178,36 @@ class Chunk(Base):
         nullable=False,
     )
 
+    # Level 1: Timestamps and Order
+    chunk_index: Mapped[int] = mapped_column(nullable=False, default=0)
     start_time: Mapped[float] = mapped_column(nullable=False)
     end_time: Mapped[float] = mapped_column(nullable=False)
+    
+    # The raw full text
     text: Mapped[str] = mapped_column(Text, nullable=False)
 
+    # Level 1: Mini-summary per chunk
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Main content embedding
     embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(384))
+    
+    # Level 2: Distinct Index (Summary Embedding)
+    summary_embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(384))
 
     search_vector: Mapped[str] = mapped_column(
         TSVECTOR,
         Computed(
-            "to_tsvector('spanish', text)",
-            persisted=True,
+            "to_tsvector('spanish', coalesce(text, ''))",
         ),
     )
 
+    summary_search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('spanish', summary)", persisted=True),
+    )
+    
     video: Mapped["Video"] = relationship(back_populates="chunks")
-
 
 
 class ChatSession(Base):
@@ -211,6 +224,11 @@ class ChatSession(Base):
         nullable=False,
     )
 
+    channel_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -220,6 +238,10 @@ class ChatSession(Base):
     messages: Mapped[List["ChatMessage"]] = relationship(
         back_populates="session",
         cascade="all, delete-orphan",
+    )
+    videos: Mapped[List["Video"]] = relationship(
+        secondary="chat_videos",
+        lazy="selectin",
     )
 
 
@@ -254,4 +276,17 @@ class ChatMessage(Base):
     )
 
 
+class ChatVideo(Base):
+    __tablename__ = "chat_videos"
+
+    chat_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("chat_sessions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    video_id: Mapped[str] = mapped_column(
+        ForeignKey("videos.video_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
 

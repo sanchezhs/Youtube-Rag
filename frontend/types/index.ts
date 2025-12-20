@@ -44,6 +44,7 @@ export interface VideoDetail extends VideoResponse {
 export interface ChatSessionResponse {
   id: string;
   title?: string | null;
+  channel_id: number;
   created_at: string;
   message_count: number;
 }
@@ -58,6 +59,7 @@ export interface ChatMessageResponse {
 
 export interface ChatSessionDetail extends ChatSessionResponse {
   messages: ChatMessageResponse[];
+  videos: VideoResponse[];
 }
 
 export interface ChatSource {
@@ -70,6 +72,8 @@ export interface ChatSource {
 
 export interface AskRequest {
   question: string;
+  channel_id: number;
+  video_ids?: string[];
   session_id?: string | null;
 }
 
@@ -77,6 +81,8 @@ export interface AskResponse {
   answer: string;
   sources: ChatSource[];
   session_id: string;
+  channel_id: number;
+  video_ids: string[];
 }
 
 // Pipeline Types

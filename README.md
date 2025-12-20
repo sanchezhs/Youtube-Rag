@@ -84,41 +84,42 @@ Chat with your video knowledge base. Citations are linked directly to the specif
 ```
 
 # TODOs
-- [High] Authentication & authorization:
-    - Add user accounts (JWT or session-based)
-    - Associate chats and channels with users
-    - Restrict access to private channels
+- [High] [] Authentication & authorization:
+    - [] Add user accounts (JWT or session-based)
+    - [] Associate chats and channels with users
+    - [] Restrict access to private channels
 
 - [High] Channel-scoped chats:
-    - Filter retrieval by channel_id in RAG service
-    - Display active channel context in chat UI
-    - Extend /ask endpoint with channel_id param
-    - Validate channel ownership (if auth enabled)
+    - [x] Filter retrieval by channel_id in RAG service
+    - [x] Display active channel context in chat UI
+    - [x] Extend /ask endpoint with channel_id param
+    - [] Validate channel ownership (if auth enabled)
 
 - [Medium] Add functionality to the Settings view:
-    - Customize models: Embedding, Transcription
-    - Storage: Manage video and audio local files (CRUD?)
-    - Chunks size
+    - [] Customize models: Embedding, Transcription
+    - [] Customize max videos limit
+    - [] Storage: Manage video and audio local files (CRUD?)
+    - [] Chunks size
 
 - [Medium] Streaming chat responses:
-    - Evaluate SSE vs WebSockets
-    - Implement token streaming in backend
-    - Progressive rendering in frontend
+    - [] Evaluate SSE vs WebSockets
+    - [] Implement token streaming in backend
+    - [] Progressive rendering in frontend
 
 - [Medium] Videos view:
-    - Add more information:
+    - [] Add more information:
         - Created at
         - Published at
         - Duration
 
-- [Low] Add functionality to the Search Input
+- [Low] [] Add functionality to the Search Input
 
-- [Low] Video deletion:
-    - DELETE /videos/{id} endpoint
-    - Cascade delete embeddings & chunks
-    - Remove local audio/video files
-    - Confirmation dialog in UI
+- [Low] [] Video deletion:
+    - [] DELETE /videos/{id} endpoint
+    - [] Cascade delete embeddings & chunks
+    - [] Remove local audio/video files
+    - [] Confirmation dialog in UI
 
-- [Low] Export features:
-    - Export transcripts (TXT / JSON)
-    - Export embeddings metadata
+- [Low] [] Export features:
+    - [] Export transcripts (TXT / JSON)
+    - [] Export embeddings metadata

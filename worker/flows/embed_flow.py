@@ -48,12 +48,10 @@ def count_pending_embeddings(video_ids: Optional[List[str]] = None) -> int:
 
 
 def embed_batch(batch_size: int = 32, video_ids: Optional[List[str]] = None) -> dict:
-    """
-    Embed a batch of chunks.
-    If video_ids is provided, only selects chunks belonging to those videos.
-    """
     with get_db_context() as db:
-        query = db.query(Chunk).filter(Chunk.embedding.is_(None))
+        query = db.query(Chunk).filter(
+            (Chunk.embedding.is_(None)) | (Chunk.summary_embedding.is_(None))
+        )
 
         if video_ids:
             query = query.filter(Chunk.video_id.in_(video_ids))
@@ -64,22 +62,21 @@ def embed_batch(batch_size: int = 32, video_ids: Optional[List[str]] = None) -> 
             return {"processed": 0, "success": True}
 
         texts = [c.text for c in batch]
+        summaries = [c.summary if c.summary else "" for c in batch]
 
         try:
             model = get_embedding_model()
-            embeddings = model.encode(
-                texts,
-                normalize_embeddings=True,
-                batch_size=batch_size,
-            )
+            text_embeddings = model.encode(texts, normalize_embeddings=True, batch_size=batch_size)
+            
+            summary_embeddings = model.encode(summaries, normalize_embeddings=True, batch_size=batch_size)
 
-            for chunk_obj, emb in zip(batch, embeddings):
-                chunk_obj.embedding = emb.tolist()
+            for i, chunk_obj in enumerate(batch):
+                chunk_obj.embedding = text_embeddings[i].tolist()
+                
+                if chunk_obj.summary:
+                    chunk_obj.summary_embedding = summary_embeddings[i].tolist()
 
             db.commit()
-            
-            logger.info(f"Embedded batch of {len(batch)} chunks")
-
             return {"processed": len(batch), "success": True}
 
         except Exception as e:
