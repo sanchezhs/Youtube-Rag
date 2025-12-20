@@ -2,6 +2,7 @@ import time
 from typing import List, Literal, Optional
 from uuid import UUID
 
+from shared.db.repositories.settings import SettingsRepository
 from sqlalchemy.orm import Session
 from sqlalchemy import select, text
 
@@ -100,6 +101,7 @@ class RAGService:
         self.message_repo = ChatMessageRepository(db)
         self.video_repo   = VideoRepository(db)
         self.chat_repo    = ChatSessionRepository(db)
+        self.settings     = SettingsRepository(db).get_settings("BACKEND")
 
     def ask(
         self,
@@ -153,9 +155,9 @@ class RAGService:
                 self.db,
                 question,
                 query_embedding=query_embedding,
-                top_k=top_k,
-                vector_weight=settings.rag_vector_weight,
-                text_weight=settings.rag_text_weight,
+                top_k=self.settings["rag_top_k"],
+                vector_weight=self.settings["rag_vector_weight"],
+                text_weight=self.settings["rag_text_weight"],
                 target_index="summary",
                 video_ids=video_ids,
             )
@@ -165,7 +167,7 @@ class RAGService:
                 sources = []
             else:
                 prompt = build_prompt(question, chunks, chat_context)
-                answer = llm_service.generate(prompt)
+                answer = llm_service.generate(prompt, system_prompt=prompt, temperature=self.settings["llm_temperature"])
                 sources = [ 
                     { 
                         "video_id": ch["video_id"],

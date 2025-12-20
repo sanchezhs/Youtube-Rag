@@ -10,6 +10,30 @@ class SettingsRepository(BaseRepository[Settings]):
     def __init__(self, db: Session):
         super().__init__(Settings, db)
         
+    @staticmethod
+    def get_settings_db(db: Session, component: str, section: Optional[str] = None) -> dict:
+        stmt = (
+            select(Settings.key, Settings.value, Settings.value_type)
+            .where(
+                Settings.component == component,
+            )
+        )
+
+        if section:
+            stmt.filter(Settings.section == section)
+
+        rows = db.execute(stmt).all()
+
+        def cast(v: str, t: str):
+            return {
+                "int": int,
+                "float": float,
+                "bool": lambda x: x.lower() == "true",
+                "string": str,
+            }[t](v)
+
+        return {key: cast(value, value_type) for key, value, value_type in rows}
+
     def get_settings(self, component: str, section: Optional[str] = None) -> dict:
         stmt = (
             select(Settings.key, Settings.value, Settings.value_type)

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_model: str = "gpt-4o-mini"
 
+    llm_temperature: float = 0.2
+    llm_system_prompt: str = "You are a helpful assistant"
+
     # RAG
     rag_top_k: int = 8
     rag_vector_weight: float = 0.7
@@ -44,6 +47,8 @@ BACKEND_SETTINGS_SPEC = {
     },
     "llm": {
         "llm_model": ("string", lambda s: s.openai_model, "Backend LLM service"),
+        "llm_temperature": ("float", lambda s: s.llm_temperature, "Backend LLM temperature"),
+        "llm_system_prompt": ("string", lambda s: s.llm_system_prompt, "Backend LLM system prompt"),
     },
 }
 

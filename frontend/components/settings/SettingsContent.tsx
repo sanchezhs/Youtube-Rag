@@ -84,6 +84,8 @@ export function SettingsContent() {
   // LLM Settings (Backend)
   const [llmConfig, setLlmConfig] = useState({
     model: 'gpt-4o-mini',
+    temperature: '0.2',
+    prompt: 'You are a helpful assistant',
   });
 
   // Transcription Settings (Worker)
@@ -116,6 +118,8 @@ export function SettingsContent() {
       
       setLlmConfig({
         model: String(getBackendSetting('llm_model', 'gpt-4o-mini')),
+        temperature: String(getBackendSetting('llm_temperature', 0.2)),
+        prompt: String(getBackendSetting('llm_prompt', 'You are a helpful assistant')),
       });
     }
   }, [backendLoading, backendSettings, getBackendSetting]);
@@ -181,6 +185,8 @@ export function SettingsContent() {
 
   const saveLlmConfig = () => handleSave('llm', bulkUpdateBackend, [
     { section: 'llm', key: 'llm_model', value: llmConfig.model, value_type: 'string' },
+    { section: 'llm', key: 'llm_system_prompt', value: llmConfig.prompt, value_type: 'string' },
+    { section: 'llm', key: 'llm_temperature', value: llmConfig.temperature, value_type: 'float' },
   ]);
 
   const saveTranscriptionConfig = () => handleSave('transcribing', bulkUpdateWorker, [
@@ -478,22 +484,58 @@ export function SettingsContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Model
-            </label>
-            <select
-              value={llmConfig.model}
-              onChange={(e) => setLlmConfig(prev => ({ ...prev, model: e.target.value }))}
-              className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="gpt-4o-mini">GPT-4o Mini</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4-turbo">GPT-4 Turbo</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-              <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-              <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
-            </select>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Model
+                </label>
+                <select
+                  value={llmConfig.model}
+                  onChange={(e) => setLlmConfig(prev => ({ ...prev, model: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                  <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                  <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Temperature
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={llmConfig.temperature}
+                  onChange={(e) => setLlmConfig(prev => ({ ...prev, temperature: e.target.value }))}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Controls randomness (0-2)
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                System Prompt
+              </label>
+              <textarea
+                value={llmConfig.prompt}
+                onChange={(e) => setLlmConfig(prev => ({ ...prev, prompt: e.target.value }))}
+                rows={4}
+                className="mt-1 w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                placeholder="You are a helpful assistant..."
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Instructions given to the model before each conversation
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

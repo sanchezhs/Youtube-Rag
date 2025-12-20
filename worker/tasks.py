@@ -13,13 +13,14 @@ from sqlalchemy.orm import Session
 from flows.ingest_flow import ingest_channel_flow
 from flows.transcribe_flow import transcribe_flow
 from flows.chunk_flow import chunk_flow
-from flows.embed_flow import embed_flow, embed_question, get_embedding_model
+from flows.embed_flow import embed_flow, embed_question
 
 from shared.db.session import SessionLocal, get_db_context
-from shared.db.models import PipelineTask, TaskStatus
+from shared.db.models import PipelineTask, Settings, TaskStatus
 from shared.db.init.poblate_settings_table import populate_settings
+from shared.db.repositories.settings import SettingsRepository
 
-from worker.core.config import settings, WORKER_SETTINGS_SPEC
+from worker.core.config import settings as app_settings, WORKER_SETTINGS_SPEC
 
 # CONFIG
 POLL_INTERVAL = 5
@@ -86,7 +87,7 @@ def fetch_next_task(db: Session) -> PipelineTask | None:
     )
     return db.execute(stmt).scalar_one_or_none()
 
-def process_single_video(task: PipelineTask, video_id: str, db: Session, base_progress: int, segment_size: float) -> bool:
+def process_single_video(task: PipelineTask, video_id: str, db: Session, base_progress: int, segment_size: float, settings: dict) -> bool:
     """
     Runs the full RAG pipeline for a SINGLE video.
     
@@ -108,13 +109,13 @@ def process_single_video(task: PipelineTask, video_id: str, db: Session, base_pr
         p_chunk = int(base_progress + (segment_size * 0.4))
         update_task_state(db, task, p_chunk, f"Chunking text for: {video_id}...")
         
-        chunk_flow(video_ids=[video_id], task_id=str(task.id))
+        chunk_flow(video_ids=[video_id], settings=settings, task_id=str(task.id))
         
         # Step 3: Embed (Approx 70% through this video's segment)
         p_embed = int(base_progress + (segment_size * 0.7))
         update_task_state(db, task, p_embed, f"Generating embeddings for: {video_id}...")
         
-        embed_flow(video_ids=[video_id], task_id=str(task.id))
+        embed_flow(video_ids=[video_id], task_id=str(task.id), batch_size=settings["embedding"]["embedding_batch_size"], embedding_model=settings["embedding"]["embedding_model"])
 
         logger.info(f"[{task.id}] Video {video_id} fully processed.")
         return True
@@ -133,6 +134,8 @@ def run_task(task: PipelineTask, db: Session):
     db.commit()
 
     try:
+        settings = SettingsRepository.get_settings_db(db, component="WORKER")
+
         # --- PHASE 1: INGEST ---
         update_task_state(db, task, 5, "Ingesting channel metadata and audio...")
         ingest_result = ingest_channel_flow(
@@ -175,7 +178,7 @@ def run_task(task: PipelineTask, db: Session):
             current_base = int(start_pct + (index * pct_per_video))
             
             # Pass the task object, base, and width to the helper
-            is_success = process_single_video(task, video_id, db, current_base, pct_per_video)
+            is_success = process_single_video(task, video_id, db, current_base, pct_per_video, settings)
             
             if is_success:
                 success_count += 1
@@ -215,9 +218,13 @@ def run_embedding(task: PipelineTask, db: Session):
     task.status = TaskStatus.RUNNING
     task.started_at = datetime.now(timezone.utc)
     update_task_state(db, task, 10, "Calculating embedding...")
+    settings = SettingsRepository.get_settings_db(db, component="WORKER", section="embedding")
 
     try:
-        task.result = embed_question(task.request["question_to_embed"])
+        task.result = embed_question(
+            task.request["question_to_embed"],
+            settings["embedding_model"],
+        )
         task.status = TaskStatus.COMPLETED
         update_task_state(db, task, 100, None)
 
@@ -282,22 +289,22 @@ def populate_settings_table():
             db=db,
             component="worker",
             spec=WORKER_SETTINGS_SPEC,
-            app_settings=settings,
+            app_settings=app_settings,
         )
 
 if __name__ == "__main__":
     killer = GracefulKiller()
 
-    # 0. Bootstrap settings, if empty
+    # 1. Bootstrap settings, if empty
     populate_settings_table()
     
-    # 1. Load model
-    logger.info("Pre-loading Embedding Model into memory...")
-    try:
-        get_embedding_model()
-        logger.info("Embedding Model Loaded.")
-    except Exception as e:
-        logger.error(f"Failed to preload model: {e}")
+    # # 1. Load model
+    # logger.info("Pre-loading Embedding Model into memory...")
+    # try:
+    #     get_embedding_model()
+    #     logger.info("Embedding Model Loaded.")
+    # except Exception as e:
+    #     logger.error(f"Failed to preload model: {e}")
 
     # 2. Recovery phase
     try:

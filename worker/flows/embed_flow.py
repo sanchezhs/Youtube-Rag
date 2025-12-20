@@ -1,7 +1,6 @@
 import logging
 from typing import Optional, List # Added typing imports
 
-from core.config import settings
 from shared.db.session import get_db_context
 from shared.db.models import Chunk
 
@@ -12,7 +11,7 @@ _embedding_model = None
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.INFO)
 
-def get_embedding_model():
+def get_embedding_model(embedding_model: str):
     """Get or create embedding model (singleton pattern)."""
     global _embedding_model
     
@@ -22,7 +21,7 @@ def get_embedding_model():
         
         device = "cuda" if torch.cuda.is_available() else "cpu"
         _embedding_model = SentenceTransformer(
-            settings.embedding_model,
+            embedding_model,
             device=device,
         )
     
@@ -47,7 +46,7 @@ def count_pending_embeddings(video_ids: Optional[List[str]] = None) -> int:
         return count
 
 
-def embed_batch(batch_size: int = 32, video_ids: Optional[List[str]] = None) -> dict:
+def embed_batch(embedding_model: str, batch_size: int = 32, video_ids: Optional[List[str]] = None) -> dict:
     with get_db_context() as db:
         query = db.query(Chunk).filter(
             (Chunk.embedding.is_(None)) | (Chunk.summary_embedding.is_(None))
@@ -65,7 +64,7 @@ def embed_batch(batch_size: int = 32, video_ids: Optional[List[str]] = None) -> 
         summaries = [c.summary if c.summary else "" for c in batch]
 
         try:
-            model = get_embedding_model()
+            model = get_embedding_model(embedding_model)
             text_embeddings = model.encode(texts, normalize_embeddings=True, batch_size=batch_size)
             
             summary_embeddings = model.encode(summaries, normalize_embeddings=True, batch_size=batch_size)
@@ -84,7 +83,7 @@ def embed_batch(batch_size: int = 32, video_ids: Optional[List[str]] = None) -> 
             db.rollback()
             return {"processed": 0, "success": False, "error": str(e)}
 
-def embed_flow(task_id: str, video_ids: Optional[List[str]] = None, batch_size: int = 32) -> dict:
+def embed_flow(task_id: str, embedding_model: str, video_ids: Optional[List[str]] = None, batch_size: int = 32) -> dict:
     """
     Main flow for generating embeddings.
     
@@ -107,7 +106,7 @@ def embed_flow(task_id: str, video_ids: Optional[List[str]] = None, batch_size: 
     failed = 0
 
     while True:
-        result = embed_batch(batch_size=batch_size, video_ids=video_ids)
+        result = embed_batch(embedding_model=embedding_model, batch_size=batch_size, video_ids=video_ids)
 
         if result["processed"] == 0:
             if not result.get("success", True):
@@ -130,7 +129,7 @@ def embed_flow(task_id: str, video_ids: Optional[List[str]] = None, batch_size: 
     return result
 
 
-def embed_question(question: str) -> List[float]:
+def embed_question(question: str, embedding_model: str) -> List[float]:
     """
     Generates the vector embedding for a single question string.
     
@@ -141,7 +140,7 @@ def embed_question(question: str) -> List[float]:
         List of floats representing the vector
     """
     # 1. Get the singleton model instance
-    model = get_embedding_model()
+    model = get_embedding_model(embedding_model)
     
     # 2. Generate embedding (returns numpy array)
     embedding = model.encode(

@@ -5,6 +5,8 @@ import type { ChatMessageResponse, ChatSource } from '@/types';
 import { cn } from '@/lib/utils';
 import { User, Bot, ChevronDown, ChevronUp } from 'lucide-react';
 import { SourceCard } from './SourceCard';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatMessageProps {
   message: ChatMessageResponse;
@@ -53,7 +55,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
               : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
           )}
         >
-          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            // className="prose prose-sm dark:prose-invert max-w-none"
+          >
+            {message.content}
+          </ReactMarkdown>
+
         </div>
 
         {/* Sources section for assistant messages */}

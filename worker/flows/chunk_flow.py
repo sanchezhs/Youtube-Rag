@@ -8,16 +8,11 @@ from shared.services.llm import llm_service
 from shared.db.session import get_db_context
 from shared.db.models import Video, Segment
 
-# Chunking configuration
-TARGET_TOKENS = 512
-OVERLAP_TOKENS = 100
-AVG_CHARS_PER_TOKEN = 4
-
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.INFO)
 
-def estimate_tokens(text_len: int) -> int:
-    return math.ceil(text_len / AVG_CHARS_PER_TOKEN)
+def estimate_tokens(text_len: int, avg_chars_per_token: int) -> int:
+    return math.ceil(text_len / avg_chars_per_token)
 
 def get_transcribed_videos() -> list[str]:
     """Get video IDs that have been transcribed."""
@@ -27,7 +22,7 @@ def get_transcribed_videos() -> list[str]:
         logger.info(f"Found {len(video_ids)} transcribed videos")
         return video_ids
 
-def chunk_video(video_id: str) -> dict:
+def chunk_video(video_id: str, settings: dict) -> dict:
     """Create chunks for a single video."""
     logger.info(f"Chunking video: {video_id}")
 
@@ -61,11 +56,14 @@ def chunk_video(video_id: str) -> dict:
             })
             current_char_len += len(text) + 1
 
-            if estimate_tokens(current_char_len) >= TARGET_TOKENS:
+            if estimate_tokens(current_char_len, settings["chunking"]["avg_chars_per_token"]) >= settings["chunking"]["target_tokens"]:
                 # Create chunk
                 chunk_text = " ".join(s["text"] for s in current_segments)
                 prompt = f"Summarize the following transcript segment in one concise sentence:\n\n{chunk_text}"
-                summary = llm_service.generate(prompt).strip()
+                summary = llm_service.generate(
+                    prompt,
+                    temperature=settings["llm"]["llm_temperature"],
+                ).strip()
 
                 chunks.append({
                     "start_time": current_segments[0]["start_time"],
@@ -75,13 +73,13 @@ def chunk_video(video_id: str) -> dict:
                 })
 
                 # Handle overlap
-                overlap_char_limit = OVERLAP_TOKENS * AVG_CHARS_PER_TOKEN
+                overlap_char_limit = settings["chunking"]["overlap_tokens"] * settings["chunking"]["avg_chars_per_token"]
                 while current_char_len > overlap_char_limit and len(current_segments) > 1:
                     removed = current_segments.pop(0)
                     current_char_len -= len(removed["text"]) + 1
 
         # Final chunk
-        if current_segments and estimate_tokens(current_char_len) > 50:
+        if current_segments and estimate_tokens(current_char_len, settings["chunking"]["avg_chars_per_token"]) > 50:
             chunk_text = " ".join(s["text"] for s in current_segments)
             prompt = f"Summarize the following transcript segment in one concise sentence:\n\n{chunk_text}"
             summary = llm_service.generate(prompt).strip()
@@ -120,7 +118,7 @@ def chunk_video(video_id: str) -> dict:
         return {"video_id": video_id, "chunks": len(chunks)}
 
 
-def chunk_flow(task_id: str, video_ids: Optional[list[str]] = None) -> dict:
+def chunk_flow(task_id: str, settings: dict, video_ids: Optional[list[str]] = None) -> dict:
     """
     Main flow for building chunks from transcriptions.
     
@@ -147,7 +145,7 @@ def chunk_flow(task_id: str, video_ids: Optional[list[str]] = None) -> dict:
 
     total_chunks = 0
     for video_id in all_video_ids:
-        result = chunk_video(video_id)
+        result = chunk_video(video_id, settings)
         total_chunks += result["chunks"]
 
     result = {
