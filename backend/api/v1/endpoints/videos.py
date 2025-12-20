@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from api.deps import get_video_repo
 from shared.db.session import get_db
 from shared.db.models import Chunk, Segment
-from shared.db.repositories.video import VideoRepository
+
+from db.repositories.video import VideoRepository
 from schemas.video import VideoResponse, VideoDetail
 
 router = APIRouter()

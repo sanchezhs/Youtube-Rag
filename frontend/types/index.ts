@@ -142,3 +142,37 @@ export interface SSETaskUpdate {
     completed_at?: string | null;
   };
 }
+
+// Settings Types
+export type SettingComponent = 'BACKEND' | 'WORKER';
+
+export type SettingValueType = 'int' | 'float' | 'string' | 'bool';
+
+export interface SettingResponse {
+  id: number;
+  component: SettingComponent;
+  section: string;
+  key: string;
+  value: string;
+  value_type: SettingValueType;
+  description: string | null;
+  updated_at: string;
+}
+
+export interface SettingCreate {
+  component: SettingComponent;
+  section: string;
+  key: string;
+  value: string;
+  value_type?: SettingValueType;
+  description?: string;
+}
+
+export interface SettingUpdate {
+  value?: string | number | boolean;
+  value_type?: SettingValueType;
+  description?: string;
+}
+
+// Settings map returned by get_settings - flat key:value structure
+export type SettingsMap = Record<string, string | number | boolean>;

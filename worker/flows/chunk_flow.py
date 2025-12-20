@@ -4,11 +4,9 @@ import logging
 
 from typing import Optional
 
-from services.llm import llm_service
-
+from shared.services.llm import llm_service
 from shared.db.session import get_db_context
 from shared.db.models import Video, Segment
-
 
 # Chunking configuration
 TARGET_TOKENS = 512
@@ -20,7 +18,6 @@ logger.setLevel(logging.INFO)
 
 def estimate_tokens(text_len: int) -> int:
     return math.ceil(text_len / AVG_CHARS_PER_TOKEN)
-
 
 def get_transcribed_videos() -> list[str]:
     """Get video IDs that have been transcribed."""

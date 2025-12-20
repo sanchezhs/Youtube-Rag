@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 
 from contextlib import asynccontextmanager
 
@@ -6,54 +5,31 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from core.config import settings
+from core.config import BACKEND_SETTINGS_SPEC, settings
 from core.logging import logger
 from core.exceptions import AppException
 from api.router import api_router
-from shared.db.session import engine, Base
+from db.init.notify import create_notify_trigger
 
-
-CREATE_NOTIFY_FUNC = """
-CREATE OR REPLACE FUNCTION notify_new_task() RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM pg_notify('task_queue', 'new_task');
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-"""
-
-CREATE_TRIGGER_SQL = """
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'task_insert_trigger') THEN
-        CREATE TRIGGER task_insert_trigger
-        AFTER INSERT ON pipeline_tasks
-        FOR EACH ROW
-        EXECUTE FUNCTION notify_new_task();
-    END IF;
-END
-$$;
-"""
+from shared.db.init.poblate_settings_table import populate_settings
+from shared.db.session import get_db_context
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("Starting application...")
-    
-    # 1. Create Tables
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables verified")
-    
+
+    # 1. Poblate settings (if empty) with .env variables
+    with get_db_context() as db:
+        populate_settings(
+            db=db,
+            component="backend",
+            spec=BACKEND_SETTINGS_SPEC,
+            app_settings=settings,
+        )
+
     # 2. Setup Postgres LISTEN/NOTIFY Triggers
-    try:
-        with engine.begin() as conn:
-            conn.execute(sa.text(CREATE_NOTIFY_FUNC))
-            conn.execute(sa.text(CREATE_TRIGGER_SQL))
-            
-        logger.info("Postgres notification triggers verified/created.")
-    except Exception as e:
-        logger.error(f"⚠️ Failed to setup DB Triggers: {e}")
-        logger.error("Worker will fallback to polling loop if triggers are missing.")
+    create_notify_trigger()
 
     yield
     

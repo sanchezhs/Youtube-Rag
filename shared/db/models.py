@@ -1,3 +1,4 @@
+from datetime import datetime
 import uuid
 from enum import Enum as PyEnum
 from typing import Optional, List
@@ -11,6 +12,7 @@ from sqlalchemy import (
     func,
     Computed,
     CheckConstraint,
+    UniqueConstraint,
     DateTime,
     Enum,
     text,
@@ -37,6 +39,18 @@ class VideoStatus(str, PyEnum):
     TRANSCRIBED = "transcribed"
     EMBEDDED    = "embedded" # Ready for RAG
     FAILED      = "failed"
+
+class SettingComponent(str, PyEnum):
+    WORKER = "worker"
+    BACKEND = "backend"
+
+
+class SettingValueType(str, PyEnum):
+    INT = "int"
+    FLOAT = "float"
+    STRING = "string"
+    BOOL = "bool"
+
 
 class PipelineTask(Base):
     """Track async pipeline tasks."""
@@ -290,3 +304,70 @@ class ChatVideo(Base):
         primary_key=True,
     )
 
+
+class Settings(Base):
+    __tablename__ = "settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    component: Mapped[SettingComponent] = mapped_column(
+        Enum(SettingComponent, name="setting_component"),
+        nullable=False,
+    )
+
+    section: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    key: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    value: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    value_type: Mapped[SettingValueType] = mapped_column(
+        Enum(SettingValueType, name="setting_value_type"),
+        nullable=False,
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(Text)
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "component",
+            "section",
+            "key",
+            name="uq_settings_component_section_key",
+        ),
+        CheckConstraint(
+            "section <> ''",
+            name="ck_settings_section_not_empty",
+        ),
+        CheckConstraint(
+            "key <> ''",
+            name="ck_settings_key_not_empty",
+        ),
+    )
+
+    def cast_value(self):
+        if self.value_type == SettingValueType.INT:
+            return int(self.value)
+        if self.value_type == SettingValueType.FLOAT:
+            return float(self.value)
+        if self.value_type == SettingValueType.BOOL:
+            return self.value.lower() == "true"
+        return self.value
+
+Base.metadata.create_all(bind=engine)

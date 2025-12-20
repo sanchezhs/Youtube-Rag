@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.deps import get_channel_repo
-from shared.db.repositories.channel import ChannelRepository
+from db.repositories.channel import ChannelRepository
 from schemas.channel import (
     ChannelCreate,
     ChannelResponse,

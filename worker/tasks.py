@@ -15,8 +15,11 @@ from flows.transcribe_flow import transcribe_flow
 from flows.chunk_flow import chunk_flow
 from flows.embed_flow import embed_flow, embed_question, get_embedding_model
 
-from shared.db.session import SessionLocal
+from shared.db.session import SessionLocal, get_db_context
 from shared.db.models import PipelineTask, TaskStatus
+from shared.db.init.poblate_settings_table import populate_settings
+
+from worker.core.config import settings, WORKER_SETTINGS_SPEC
 
 # CONFIG
 POLL_INTERVAL = 5
@@ -241,8 +244,6 @@ def wait_for_notification(db_session: Session, timeout=60):
     db_session.execute(text("LISTEN task_queue"))
     db_session.commit()
     
-    logger.info("Waiting for tasks (idle)...")
-
     # We dig into the private attributes to find the raw driver connection
     raw_conn = None
     fd       = None
@@ -275,8 +276,20 @@ def wait_for_notification(db_session: Session, timeout=60):
         logger.warning(f"Select failed ({e}), falling back to sleep.")
         time.sleep(POLL_INTERVAL)
 
+def populate_settings_table():
+    with get_db_context() as db:
+        populate_settings(
+            db=db,
+            component="worker",
+            spec=WORKER_SETTINGS_SPEC,
+            app_settings=settings,
+        )
+
 if __name__ == "__main__":
     killer = GracefulKiller()
+
+    # 0. Bootstrap settings, if empty
+    populate_settings_table()
     
     # 1. Load model
     logger.info("Pre-loading Embedding Model into memory...")

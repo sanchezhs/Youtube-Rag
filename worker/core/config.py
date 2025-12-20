@@ -24,25 +24,39 @@ class Settings(BaseSettings):
 
     # Whisper
     whisper_model_size: str = "large-v3"
-    whisper_device: Optional[str] = None
-    whisper_compute_type: Optional[str] = None
+    whisper_device: Optional[str] = "gpu"
+    whisper_compute_type: Optional[str] = "float16"
 
     # Embedding
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_batch_size: int = 32
 
+    # Chunking
+    target_tokens: int = 512
+    overlap_tokens: int = 100
+    avg_chars_per_token: int = 4
+
     # Paths
     audio_dir: str = str(BASE_DIR / "data" / "audio")
-
-    # RAG
-    rag_top_k: int = 8
-    rag_vector_weight: float = 0.7
-    rag_text_weight: float = 0.3
-
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
 
+WORKER_SETTINGS_SPEC = {
+    "transcribing": {
+        "whisper_compute_type": ("string", lambda s: s.whisper_compute_type, None),
+        "whisper_device": ("string", lambda s: s.whisper_device, None),
+    },
+    "embedding": {
+        "embedding_model": ("string", lambda s: s.embedding_model, None),
+        "embedding_batch_size": ("int", lambda s: s.embedding_batch_size, None),
+    },
+    "chunking": {
+        "target_tokens": ("int", lambda s: s.target_tokens, None),
+        "overlap_tokens": ("int", lambda s: s.overlap_tokens, None),
+        "avg_chars_per_token": ("int", lambda s: s.avg_chars_per_token, None),
+    },
+}
 
 settings = get_settings()

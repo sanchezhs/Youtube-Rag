@@ -22,8 +22,6 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
 
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-
     # OpenAI
     openai_api_key: str
     openai_model: str = "gpt-4o-mini"
@@ -37,5 +35,16 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+BACKEND_SETTINGS_SPEC = {
+    "rag": {
+        "rag_top_k": ("int", lambda s: s.rag_top_k, "Backend RAG top k"),
+        "rag_text_weight": ("float", lambda s: s.rag_text_weight, "Backend RAG text weight"),
+        "rag_vector_weight": ("float", lambda s: s.rag_vector_weight, "Backend RAG vector weight"),
+    },
+    "llm": {
+        "llm_model": ("string", lambda s: s.openai_model, "Backend LLM service"),
+    },
+}
 
 settings = get_settings()

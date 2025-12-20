@@ -96,10 +96,12 @@ Chat with your video knowledge base. Citations are linked directly to the specif
     - [] Validate channel ownership (if auth enabled)
 
 - [Medium] Add functionality to the Settings view:
-    - [] Customize models: Embedding, Transcription
-    - [] Customize max videos limit
+    - [x] Worker:
+        - Chunking: Target_tokens, overlap_token, avg_chars_per_token
+        - Embedding: Model, batch_size
+    - [x] Backend:
+        - Rag: rag_top_k, rag_vector_weight, rag_text_weight,
     - [] Storage: Manage video and audio local files (CRUD?)
-    - [] Chunks size
 
 - [Medium] Streaming chat responses:
     - [] Evaluate SSE vs WebSockets
@@ -107,10 +109,7 @@ Chat with your video knowledge base. Citations are linked directly to the specif
     - [] Progressive rendering in frontend
 
 - [Medium] Videos view:
-    - [] Add more information:
-        - Created at
-        - Published at
-        - Duration
+    - [] Fix unknown
 
 - [Low] [] Add functionality to the Search Input
 
