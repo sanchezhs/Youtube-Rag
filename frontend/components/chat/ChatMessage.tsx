@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm';
 
 interface ChatMessageProps {
   message: ChatMessageResponse;
+  defaultSourcesCollapsed?: boolean;
 }
 
 function parseMessageSources(sources: string | null | undefined): ChatSource[] {
@@ -26,10 +27,10 @@ function parseMessageSources(sources: string | null | undefined): ChatSource[] {
   }
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, defaultSourcesCollapsed = true }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const sources = parseMessageSources(message.sources);
-  const [showSources, setShowSources] = useState(true);
+  const [showSources, setShowSources] = useState(!defaultSourcesCollapsed);
 
   return (
     <div className={cn('flex gap-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -57,11 +58,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            // className="prose prose-sm dark:prose-invert max-w-none"
           >
-            {message.content}
+            {message.content || '...'}
           </ReactMarkdown>
-
         </div>
 
         {/* Sources section for assistant messages */}

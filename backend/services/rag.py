@@ -1,5 +1,7 @@
 import time
-from typing import List, Literal, Optional
+import json
+
+from typing import Generator, List, Literal, Optional
 from uuid import UUID
 
 from shared.db.repositories.settings import SettingsRepository
@@ -103,17 +105,15 @@ class RAGService:
         self.chat_repo    = ChatSessionRepository(db)
         self.settings     = SettingsRepository(db).get_settings("BACKEND")
 
-    def ask(
+    def ask_stream(
         self,
         question: str,
         channel_id: int,
         video_ids: List[str],
         task_id: UUID,
         session_id: Optional[UUID] = None,
-        *,
-        top_k: int = 8,
-    ) -> dict:
-
+    ) -> Generator[str, None, None]:
+        # 1. Setup Session
         session = self.session_repo.get_or_create(
             question,
             channel_id,
@@ -121,34 +121,37 @@ class RAGService:
         )
 
         if video_ids:
-            self.chat_repo.upsert_chat_videos(
-                chat_id=session.id,
-                video_ids=video_ids,
-            )
+            self.chat_repo.upsert_chat_videos(session.id, video_ids)
 
-        # Determine intent
+        # Send Session ID event immediately
+        yield json.dumps({"type": "session_id", "data": str(session.id)}) + "\n"
+
+        # 2. Logic (Intent & Retrieval)
         intent = self._classify_intent(question)
-        logger.info(f"Intent: {intent}")
-
-        video_ids = self.video_repo.get_chat_video_ids(
-            channel_id=channel_id,
-            video_ids=video_ids,
-        )
+        video_ids = self.video_repo.get_chat_video_ids(channel_id, video_ids)
+        
+        answer_text = ""
+        sources = []
 
         if intent == "METADATA":
-            logger.info("Routing to SQL Agent...")
-            answer = self._handle_metadata_query(question)
-            sources = []
+            logger.info("Routing - METADATA")
+            answer_text = self._handle_metadata_query(question)
+            yield json.dumps({"type": "content", "data": answer_text}) + "\n"
 
         elif intent == "CONTENT_GLOBAL":
-            logger.info("Routing to content global...")
-            answer = self.handle_content_global(video_ids=video_ids)
-            sources = []
+            for event in self.handle_content_global(video_ids=video_ids):
+                
+                if event["type"] == "sources":
+                    sources = event["data"]
+                    yield json.dumps(event) + "\n"
+                
+                elif event["type"] == "content":
+                    answer_text += event["data"]
+                    yield json.dumps(event) + "\n"
 
-        else:  # CONTENT
-            logger.info("Routing to content...")
+        else:  # CONTENT (RAG)
+            logger.info("Routing - CONTENT")
             query_embedding = self._wait_for_embedding(task_id)
-
             chat_context = self.session_repo.get_recent_context(session.id)
 
             chunks = retriever_service.search_hybrid(
@@ -163,43 +166,52 @@ class RAGService:
             )
 
             if not chunks:
-                answer = "I couldn't find any relevant information in the selected videos."
-                sources = []
+                answer_text = "I couldn't find any relevant information in the selected videos."
+                yield json.dumps({"type": "content", "data": answer_text}) + "\n"
             else:
-                prompt = build_prompt(question, chunks, chat_context)
-                answer = llm_service.generate(prompt, system_prompt=prompt, temperature=self.settings["llm_temperature"])
-                sources = [ 
-                    { 
+                # Prepare sources
+                sources = [
+                    {
                         "video_id": ch["video_id"],
                         "start": ch["start"],
                         "end": ch["end"],
-                        "url": youtube_timestamp_url(ch["video_id"], ch["start"]), "score": ch["score"], 
-                    } 
-                    for ch in chunks 
+                        "url": youtube_timestamp_url(ch["video_id"], ch["start"]),
+                        "score": ch["score"],
+                    }
+                    for ch in chunks
                 ]
+                
+                # Send Sources event
+                yield json.dumps({"type": "sources", "data": sources}) + "\n"
 
-        # Persist conversation
+                # Generate Stream
+                prompt = build_prompt(question, chunks, chat_context)
+                stream_generator = llm_service.generate_stream(
+                    prompt, 
+                    system_prompt=prompt, 
+                    temperature=self.settings["llm_temperature"]
+                )
+
+                for token in stream_generator:
+                    answer_text += token
+                    # Send Content Token event
+                    yield json.dumps({"type": "content", "data": token}) + "\n"
+
+        # 3. Persistence (Save to DB after stream finishes)
         self.message_repo.add_message(session.id, "user", question)
-        self.message_repo.add_message(session.id, "assistant", answer, sources)
-
-        return {
-            "answer": answer,
-            "channel_id": channel_id,
-            "video_ids": video_ids,
-            "sources": sources,
-            "session_id": session.id,
-        }
+        self.message_repo.add_message(session.id, "assistant", answer_text, sources)
 
 
     def handle_content_global(
         self,
         video_ids: List[str],
         max_summaries_per_video: int = 20,
-    ) -> str:
+    ):
+        
         rows = self.db.execute(
             text(
                 """
-                SELECT video_id, chunk_index, summary
+                SELECT video_id, chunk_index, summary, start_time, end_time
                 FROM chunks
                 WHERE video_id = ANY(:video_ids)
                   AND summary IS NOT NULL
@@ -210,12 +222,15 @@ class RAGService:
         ).fetchall()
 
         if not rows:
-            return (
+            content = (
                 "I do not have enough summarized information to extract the main "
-                "points from the selected videos."
+                "points from the selected videos.",
+                [] 
             )
+            yield {"type": "content", "data": content}
 
         summaries = []
+        sources = []
         current_video = None
         count = 0
 
@@ -225,8 +240,17 @@ class RAGService:
                 count = 0
                 summaries.append(f"\nVideo {r.video_id}:")
 
-            if count < max_summaries_per_video and r.summary.strip():
+            if count < max_summaries_per_video and r.summary and r.summary.strip():
                 summaries.append(f"- {r.summary}")
+                
+                sources.append({
+                    "video_id": r.video_id,
+                    "start": r.start_time,
+                    "end": r.end_time,
+                    "url": youtube_timestamp_url(r.video_id, r.start_time),
+                    "score": 1.0,
+                })
+                
                 count += 1
 
         summaries_text = "\n".join(summaries)
@@ -235,7 +259,7 @@ class RAGService:
 You are given summarized segments from one or more YouTube videos.
 
 Your task is to identify the main points discussed across the selected videos
-and present them as a concise, structured list of bullet points.
+and present them as a concise, structured list of bullet points in Spanish.
 
 Rules:
 - Do NOT invent information.
@@ -249,7 +273,15 @@ Summaries:
 Main points:
 """.strip()
 
-        return llm_service.generate(prompt).strip()
+        yield {"type": "sources", "data": sources}
+
+        answer_text = ""
+        stream_generator = llm_service.generate_stream(prompt, temperature=self.settings["llm_temperature"])
+
+        for token in stream_generator:
+            answer_text += token
+            yield {"type": "content", "data": token}
+
 
     def _wait_for_embedding(self, task_id: UUID) -> list[float]:
         timeout = 30

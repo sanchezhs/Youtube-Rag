@@ -104,9 +104,9 @@ Chat with your video knowledge base. Citations are linked directly to the specif
     - [] Storage: Manage video and audio local files (CRUD?)
 
 - [Medium] Streaming chat responses:
-    - [] Evaluate SSE vs WebSockets
-    - [] Implement token streaming in backend
-    - [] Progressive rendering in frontend
+    - [x] Evaluate SSE vs WebSockets
+    - [x] Implement token streaming in backend
+    - [x] Progressive rendering in frontend
 
 - [Medium] Videos view:
     - [] Fix unknown

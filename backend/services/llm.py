@@ -1,3 +1,4 @@
+from typing import Generator
 from openai import OpenAI
 
 from core.config import settings
@@ -29,6 +30,32 @@ class LLMService:
         except Exception as e:
             logger.error(f"LLM generation failed: {e}")
             raise
+
+    def generate_stream(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str = "You are a helpful assistant.",
+        temperature: float = 0.2,
+    ) -> Generator[str, None, None]:
+        try:
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=temperature,
+                stream=True,
+            )
+            
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+
+        except Exception as e:
+            logger.error(f"LLM streaming failed: {e}")
+            yield " [Error generating response]"
 
 
 llm_service = LLMService()

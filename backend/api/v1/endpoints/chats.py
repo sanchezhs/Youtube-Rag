@@ -2,6 +2,7 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from db.repositories.chat import ChatSessionRepository
@@ -74,8 +75,9 @@ def delete_session(
         raise HTTPException(status_code=404, detail="Session not found")
 
 
-@router.post("/ask", response_model=AskResponse)
-def ask(
+
+@router.post("/ask_stream")
+def ask_stream(
     request: AskRequest,
     db: Session = Depends(get_db),
 ):
@@ -90,12 +92,14 @@ def ask(
     db.commit()
     db.refresh(task)
 
-    return rag_service.ask(
-        question=request.question,
-        channel_id=request.channel_id,
-        video_ids=request.video_ids,
-        task_id=task.id,
-        session_id=request.session_id,
-        top_k=5
+    return StreamingResponse(
+        rag_service.ask_stream(
+            question=request.question,
+            channel_id=request.channel_id,
+            video_ids=request.video_ids,
+            task_id=task.id,
+            session_id=request.session_id,
+        ),
+        media_type="application/x-ndjson"
     )
 

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from flows.ingest_flow import ingest_channel_flow
 from flows.transcribe_flow import transcribe_flow
 from flows.chunk_flow import chunk_flow
-from flows.embed_flow import embed_flow, embed_question
+from flows.embed_flow import embed_flow, embed_question, get_embedding_model
 
 from shared.db.session import SessionLocal, get_db_context
 from shared.db.models import PipelineTask, Settings, TaskStatus
@@ -124,7 +124,7 @@ def process_single_video(task: PipelineTask, video_id: str, db: Session, base_pr
         logger.error(f"[{task.id}] Failed to process video {video_id}: {e}")
         return False
 
-def run_task(task: PipelineTask, db: Session):
+def run_task(task: PipelineTask, db: Session, settings: dict):
     logger.info(f"Starting Task ID: {task.id}")
     
     task.status = TaskStatus.RUNNING
@@ -134,8 +134,6 @@ def run_task(task: PipelineTask, db: Session):
     db.commit()
 
     try:
-        settings = SettingsRepository.get_settings_db(db, component="WORKER")
-
         # --- PHASE 1: INGEST ---
         update_task_state(db, task, 5, "Ingesting channel metadata and audio...")
         ingest_result = ingest_channel_flow(
@@ -297,14 +295,17 @@ if __name__ == "__main__":
 
     # 1. Bootstrap settings, if empty
     populate_settings_table()
+
+    with SessionLocal() as db:
+        settings = SettingsRepository.get_settings_db(db, component="WORKER")
     
-    # # 1. Load model
-    # logger.info("Pre-loading Embedding Model into memory...")
-    # try:
-    #     get_embedding_model()
-    #     logger.info("Embedding Model Loaded.")
-    # except Exception as e:
-    #     logger.error(f"Failed to preload model: {e}")
+    # 1. Load model
+    logger.info("Pre-loading Embedding Model into memory...")
+    try:
+        get_embedding_model(settings["embedding_model"])
+        logger.info("Embedding Model Loaded.")
+    except Exception as e:
+        logger.error(f"Failed to preload model: {e}")
 
     # 2. Recovery phase
     try:
@@ -324,7 +325,7 @@ if __name__ == "__main__":
                 if task:
                     # 2. If task found, run it
                     if task.task_type == "pipeline":
-                        run_task(task, db)
+                        run_task(task, db, settings)
                     elif task.task_type == "embed_question":
                         run_embedding(task, db)
                     else:

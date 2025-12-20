@@ -23,14 +23,41 @@ export function ChatInterface() {
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Track if user has manually scrolled up during streaming
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Handle scroll events to detect if user scrolled up
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    if (isStreaming && !isNearBottom) {
+      setUserScrolledUp(true);
+    } else if (isNearBottom) {
+      setUserScrolledUp(false);
+    }
+  };
+
+  // Only auto-scroll if user hasn't scrolled up and we're not streaming
+  // Or if we're at the start of a new message
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!userScrolledUp && messages.length > 0) {
+      // Only scroll on new user messages, not during streaming
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.role === 'user') {
+        scrollToBottom();
+      }
+    }
+  }, [messages.length, userScrolledUp]);
 
   const canSendMessage = () => {
     if (!chatContext.channel) return false;
@@ -45,7 +72,10 @@ export function ChatInterface() {
     const question = input.trim();
     setInput('');
     setLoading(true);
+    setIsStreaming(true);
+    setUserScrolledUp(false); // Reset scroll tracking for new message
 
+    // 1. Add User Message
     const userMessage: ChatMessageResponse = {
       id: Date.now(),
       role: 'user',
@@ -54,39 +84,63 @@ export function ChatInterface() {
     };
     setMessages((prev) => [...prev, userMessage]);
 
+    // 2. Create an empty Assistant Message placeholder
+    const assistantMessageId = Date.now() + 1;
+    const assistantMessagePlaceholder: ChatMessageResponse = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '', // Start empty
+      created_at: new Date().toISOString(),
+      sources: undefined,
+    };
+    setMessages((prev) => [...prev, assistantMessagePlaceholder]);
+
     try {
-      const response = await chatApi.ask({
+      let fullContent = '';
+
+      // 3. Call Streaming API
+      await chatApi.askStream({
         question,
         channel_id: chatContext.channel!.id,
         video_ids: chatContext.scope === 'videos' 
           ? chatContext.selectedVideos.map(v => v.video_id)
           : [],
         session_id: sessionId || undefined,
+      }, (type, data) => {
+        
+        if (type === 'session_id') {
+           if (!sessionId) setSessionId(data);
+        } 
+        else if (type === 'sources') {
+           // Update sources - they will be collapsed by default
+           setMessages((prev) => prev.map(msg => 
+             msg.id === assistantMessageId 
+               ? { ...msg, sources: JSON.stringify(data) } 
+               : msg
+           ));
+        } 
+        else if (type === 'content') {
+           // Append text token
+           fullContent += data;
+           setMessages((prev) => prev.map(msg => 
+             msg.id === assistantMessageId 
+               ? { ...msg, content: fullContent } 
+               : msg
+           ));
+        }
       });
 
-      if (!sessionId) {
-        setSessionId(response.session_id);
-      }
-
-      const assistantMessage: ChatMessageResponse = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: response.answer,
-        created_at: new Date().toISOString(),
-        sources: JSON.stringify(response.sources),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Failed to send message:', error);
-      const errorMessage: ChatMessageResponse = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Handle error in UI
+      setMessages((prev) => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: msg.content + '\n[Error: Connection interrupted]' } 
+          : msg
+      ));
     } finally {
       setLoading(false);
+      setIsStreaming(false);
       inputRef.current?.focus();
     }
   };
@@ -101,6 +155,7 @@ export function ChatInterface() {
   const handleNewChat = () => {
     setSessionId(null);
     setMessages([]);
+    setUserScrolledUp(false);
     // Keep the current channel context but reset to "all videos"
     setChatContext(prev => ({
       ...prev,
@@ -115,6 +170,7 @@ export function ChatInterface() {
       const session = await chatApi.getSession(id);
       setSessionId(id);
       setMessages(session.messages);
+      setUserScrolledUp(false);
 
       // Restore chat context from session
       const channels = await channelsApi.list();
@@ -210,7 +266,11 @@ export function ChatInterface() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div 
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="max-w-md">
@@ -245,9 +305,13 @@ export function ChatInterface() {
           ) : (
             <>
               {messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
+                <ChatMessage 
+                  key={message.id} 
+                  message={message} 
+                  defaultSourcesCollapsed={true}
+                />
               ))}
-              {loading && (
+              {loading && messages[messages.length - 1]?.content === '' && (
                 <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                   <Spinner size="sm" />
                   <span className="text-sm">Thinking...</span>
