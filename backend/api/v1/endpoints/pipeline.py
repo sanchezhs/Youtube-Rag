@@ -15,6 +15,7 @@ from sqlalchemy import delete
 from shared.db.session import get_db
 from shared.db.models import Channel, Video, Chunk, PipelineTask, TaskStatus
 from schemas.pipeline import (
+    PaginatedTasksResponse,
     TaskRequest,
     PipelineStatsResponse,
     PipelineTaskResponse,
@@ -42,21 +43,38 @@ def get_pipeline_stats(db: Session = Depends(get_db)):
 # -------------------------------------------------------------------------
 # Task Management
 # -------------------------------------------------------------------------
-@router.get("/tasks", response_model=list[PipelineTaskResponse])
+@router.get("/tasks", response_model=PaginatedTasksResponse)
 def list_tasks(
     status: Optional[TaskStatus] = None,
-    limit: int = 50,
+    page: int = 1,
+    page_size: int = 20,
     db: Session = Depends(get_db),
 ):
-    """List pipeline tasks."""
+    """List pipeline tasks with pagination."""
+    if page < 1:
+        page = 1
+    if page_size < 1:
+        page_size = 20
+    if page_size > 100:
+        page_size = 100
+    
     query = db.query(PipelineTask).order_by(PipelineTask.created_at.desc())
     
     if status:
         query = query.filter(PipelineTask.status == status)
     
-    tasks = query.limit(limit).all()
-    return [PipelineTaskResponse.model_validate(t) for t in tasks]
-
+    total = query.count()
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+    offset = (page - 1) * page_size
+    tasks = query.offset(offset).limit(page_size).all()
+    
+    return PaginatedTasksResponse(
+        items=[PipelineTaskResponse.model_validate(t) for t in tasks],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 @router.get("/tasks/{task_id}", response_model=PipelineTaskResponse)
 def get_task(task_id: UUID, db: Session = Depends(get_db)):

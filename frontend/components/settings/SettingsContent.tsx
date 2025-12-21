@@ -91,7 +91,7 @@ export function SettingsContent() {
   // Transcription Settings (Worker)
   const [transcriptionConfig, setTranscriptionConfig] = useState({
     computeType: 'float16',
-    device: 'gpu',
+    device: 'cuda',
   });
   
   // Embedding Settings (Worker)

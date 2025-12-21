@@ -55,6 +55,13 @@ class PipelineTaskResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PaginatedTasksResponse(BaseModel):
+    items: list[PipelineTaskResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
 
 class PipelineStatsResponse(BaseModel):
     total_channels: int

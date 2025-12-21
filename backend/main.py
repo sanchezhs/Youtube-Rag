@@ -13,11 +13,15 @@ from db.init.notify import create_notify_trigger
 
 from shared.db.init.poblate_settings_table import populate_settings
 from shared.db.session import get_db_context
+from shared.utils.utils import print_settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("Starting application...")
+
+    # 0. Print settings
+    print_settings(logger, settings, "Backend settings:", {"openai_api_key", "database_url"})
 
     # 1. Poblate settings (if empty) with .env variables
     with get_db_context() as db:

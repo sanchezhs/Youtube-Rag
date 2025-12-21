@@ -11,14 +11,15 @@ from sqlalchemy import select as sql_select, text
 from sqlalchemy.orm import Session
 
 from flows.ingest_flow import ingest_channel_flow
-from flows.transcribe_flow import transcribe_flow
+from flows.transcribe_flow import get_pending_videos, transcribe_flow
 from flows.chunk_flow import chunk_flow
 from flows.embed_flow import embed_flow, embed_question, get_embedding_model
 
 from shared.db.session import SessionLocal, get_db_context
-from shared.db.models import PipelineTask, Settings, TaskStatus
+from shared.db.models import PipelineTask, TaskStatus
 from shared.db.init.poblate_settings_table import populate_settings
 from shared.db.repositories.settings import SettingsRepository
+from shared.utils.utils import print_settings
 
 from worker.core.config import settings as app_settings, WORKER_SETTINGS_SPEC
 
@@ -145,6 +146,11 @@ def run_task(task: PipelineTask, db: Session, settings: dict):
         
         video_ids = ingest_result.get("video_ids", [])
         total_videos = len(video_ids)
+
+        if not video_ids:
+            result = get_pending_videos()
+            video_ids = [r["video_id"] for r in result]
+            total_videos = len(video_ids)
         
         if not video_ids:
             logger.warning(f"[{task.id}] No videos found.")
@@ -292,6 +298,8 @@ def populate_settings_table():
 
 if __name__ == "__main__":
     killer = GracefulKiller()
+
+    print_settings(logger, app_settings, "Worker settings:", {"openai_api_key", "database_url"})
 
     # 1. Bootstrap settings, if empty
     populate_settings_table()

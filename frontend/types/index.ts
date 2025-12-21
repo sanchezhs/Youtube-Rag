@@ -1,3 +1,12 @@
+// Pagination Type
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 // Channel Types
 export interface ChannelResponse {
   id: number;
@@ -109,6 +118,7 @@ export interface PipelineTaskResponse {
   started_at?: string | null;
   completed_at?: string | null;
 }
+export type PaginatedTasksResponse = PaginatedResponse<PipelineTaskResponse>;
 
 export interface TaskRequest {
   task_type: TaskType;

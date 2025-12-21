@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { pipelineApi } from '@/lib/api';
 import type { PipelineTaskResponse, TaskStatus } from '@/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
+import { Pagination } from '@/components/ui/Pagination';
 import { formatDateTime } from '@/lib/utils';
 import { 
   RefreshCw, 
@@ -46,6 +47,10 @@ const statusIcons: Record<TaskStatus, React.ReactNode> = {
   failed: <XCircle className="h-4 w-4" />,
 };
 
+// ... (keep all the existing helper interfaces and components: TaskStepInfo, ParsedResult, 
+// parseTaskResult, TaskStepDisplay, EmbeddingResultDisplay, CompletedResultDisplay, 
+// TextResultDisplay, TaskResultDisplay, DeleteConfirmDialog - they remain unchanged)
+
 interface TaskStepInfo {
   step?: string;
   current_step?: number;
@@ -71,7 +76,6 @@ function parseTaskResult(result: string | null | undefined): ParsedResult {
     return { type: 'unknown', data: null };
   }
 
-  // Check if it looks like an embedding (starts with { followed by numbers)
   const embeddingPattern = /^[\[{]-?\d+\.\d+,/;
   if (embeddingPattern.test(result.trim())) {
     return { 
@@ -81,11 +85,9 @@ function parseTaskResult(result: string | null | undefined): ParsedResult {
     };
   }
 
-  // Try to parse as JSON
   try {
     const parsed = JSON.parse(result);
     
-    // Check if it's an array of numbers (embedding in JSON format)
     if (Array.isArray(parsed) && typeof parsed[0] === 'number') {
       return { 
         type: 'embedding', 
@@ -94,10 +96,8 @@ function parseTaskResult(result: string | null | undefined): ParsedResult {
       };
     }
     
-    // It's a regular JSON object (step info)
     return { type: 'step_info', data: parsed as TaskStepInfo };
   } catch {
-    // Not JSON, return as text
     return { 
       type: 'text', 
       data: { message: result },
@@ -376,31 +376,54 @@ export function TaskList() {
   const [tasks, setTasks] = useState<PipelineTaskResponse[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; task: PipelineTaskResponse | null }>({
     isOpen: false,
     task: null,
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       const data = await pipelineApi.listTasks(
-        statusFilter ? (statusFilter as TaskStatus) : undefined
+        statusFilter ? (statusFilter as TaskStatus) : undefined,
+        currentPage,
+        pageSize
       );
-      setTasks(data);
+      setTasks(data.items);
+      setTotalItems(data.total);
+      setTotalPages(data.total_pages);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, currentPage, pageSize]);
 
   useEffect(() => {
     fetchTasks();
+    // Auto-refresh every 5 seconds
     const interval = setInterval(fetchTasks, 5000);
     return () => clearInterval(interval);
+  }, [fetchTasks]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
   }, [statusFilter]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
 
   const handleDeleteClick = (task: PipelineTaskResponse) => {
     setDeleteConfirm({ isOpen: true, task });
@@ -412,7 +435,8 @@ export function TaskList() {
     setIsDeleting(true);
     try {
       await pipelineApi.deleteTask(deleteConfirm.task.id);
-      setTasks((prev) => prev.filter((t) => t.id !== deleteConfirm.task?.id));
+      // Refetch to update pagination correctly
+      await fetchTasks();
       setDeleteConfirm({ isOpen: false, task: null });
     } catch (error) {
       console.error('Failed to delete task:', error);
@@ -457,93 +481,108 @@ export function TaskList() {
               No tasks found
             </div>
           ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {tasks.map((task) => (
-                <div 
-                  key={task.id} 
-                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <Badge variant={statusVariants[task.status]}>
-                        <span className="flex items-center gap-1.5">
-                          {statusIcons[task.status]}
-                          {task.status}
+            <>
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {tasks.map((task) => (
+                  <div 
+                    key={task.id} 
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <Badge variant={statusVariants[task.status]}>
+                          <span className="flex items-center gap-1.5">
+                            {statusIcons[task.status]}
+                            {task.status}
+                          </span>
+                        </Badge>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {task.task_type}
                         </span>
-                      </Badge>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {task.task_type}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {formatDateTime(task.created_at)}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteClick(task)}
-                        disabled={!canDeleteTask(task)}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          canDeleteTask(task)
-                            ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400'
-                            : 'text-gray-200 dark:text-gray-700 cursor-not-allowed'
-                        }`}
-                        title={canDeleteTask(task) ? 'Delete task' : 'Cannot delete running task'}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Task ID */}
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 font-mono">
-                    ID: {task.id}
-                  </p>
-                  
-                  {/* Progress bar for running tasks */}
-                  {task.status === 'running' && (
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        <span>Progress</span>
-                        <span>{task.progress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div
-                          className="bg-primary-600 dark:bg-primary-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${task.progress}%` }}
-                        />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {formatDateTime(task.created_at)}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteClick(task)}
+                          disabled={!canDeleteTask(task)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            canDeleteTask(task)
+                              ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400'
+                              : 'text-gray-200 dark:text-gray-700 cursor-not-allowed'
+                          }`}
+                          title={canDeleteTask(task) ? 'Delete task' : 'Cannot delete running task'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Result display */}
-                  <TaskResultDisplay result={task.result} status={task.status} />
+                    
+                    {/* Task ID */}
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 font-mono">
+                      ID: {task.id}
+                    </p>
+                    
+                    {/* Progress bar for running tasks */}
+                    {task.status === 'running' && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          <span>Progress</span>
+                          <span>{task.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-primary-600 dark:bg-primary-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${task.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Result display */}
+                    <TaskResultDisplay result={task.result} status={task.status} />
 
-                  {/* Error message for failed tasks */}
-                  {task.error_message && (
-                    <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <XCircle className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-red-700 dark:text-red-300 break-words">
-                          {task.error_message}
-                        </p>
+                    {/* Error message for failed tasks */}
+                    {task.error_message && (
+                      <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <XCircle className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-red-700 dark:text-red-300 break-words">
+                            {task.error_message}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Time info */}
-                  {(task.started_at || task.completed_at) && (
-                    <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                      {task.started_at && (
-                        <span>Started: {formatDateTime(task.started_at)}</span>
-                      )}
-                      {task.completed_at && (
-                        <span>Completed: {formatDateTime(task.completed_at)}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    )}
+                    
+                    {/* Time info */}
+                    {(task.started_at || task.completed_at) && (
+                      <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                        {task.started_at && (
+                          <span>Started: {formatDateTime(task.started_at)}</span>
+                        )}
+                        {task.completed_at && (
+                          <span>Completed: {formatDateTime(task.completed_at)}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  pageSizeOptions={[10, 20, 50, 100]}
+                />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

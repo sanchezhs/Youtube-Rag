@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Whisper
     whisper_model_size: str = "large-v3"
-    whisper_device: Optional[str] = "gpu"
+    whisper_device: Optional[str] = "cuda"
     whisper_compute_type: Optional[str] = "float16"
 
     # Embedding
