@@ -116,7 +116,7 @@ def process_single_video(task: PipelineTask, video_id: str, db: Session, base_pr
         p_embed = int(base_progress + (segment_size * 0.7))
         update_task_state(db, task, p_embed, f"Generating embeddings for: {video_id}...")
         
-        embed_flow(video_ids=[video_id], task_id=str(task.id), batch_size=settings["embedding"]["embedding_batch_size"], embedding_model=settings["embedding"]["embedding_model"])
+        embed_flow(video_ids=[video_id], task_id=str(task.id), batch_size=settings["embedding_batch_size"], embedding_model=settings["embedding_model"])
 
         logger.info(f"[{task.id}] Video {video_id} fully processed.")
         return True
@@ -305,8 +305,13 @@ if __name__ == "__main__":
     populate_settings_table()
 
     with SessionLocal() as db:
-        settings = SettingsRepository.get_settings_db(db, component="WORKER")
+        worker_settings = SettingsRepository.get_settings_db(db, component="WORKER")
+        backend_settings = SettingsRepository.get_settings_db(db, component="BACKEND")
+
+    settings = worker_settings | backend_settings
     
+    logger.info(f"Settings: {settings}")
+
     # 1. Load model
     logger.info("Pre-loading Embedding Model into memory...")
     try:

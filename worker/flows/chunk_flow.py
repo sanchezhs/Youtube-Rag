@@ -56,13 +56,13 @@ def chunk_video(video_id: str, settings: dict) -> dict:
             })
             current_char_len += len(text) + 1
 
-            if estimate_tokens(current_char_len, settings["chunking"]["avg_chars_per_token"]) >= settings["chunking"]["target_tokens"]:
+            if estimate_tokens(current_char_len, settings["avg_chars_per_token"]) >= settings["target_tokens"]:
                 # Create chunk
                 chunk_text = " ".join(s["text"] for s in current_segments)
                 prompt = f"Summarize the following transcript segment in one concise sentence:\n\n{chunk_text}"
                 summary = llm_service.generate(
                     prompt,
-                    temperature=settings["llm"]["llm_temperature"],
+                    temperature=settings["llm_temperature"],
                 ).strip()
 
                 chunks.append({
@@ -73,13 +73,13 @@ def chunk_video(video_id: str, settings: dict) -> dict:
                 })
 
                 # Handle overlap
-                overlap_char_limit = settings["chunking"]["overlap_tokens"] * settings["chunking"]["avg_chars_per_token"]
+                overlap_char_limit = settings["overlap_tokens"] * settings["avg_chars_per_token"]
                 while current_char_len > overlap_char_limit and len(current_segments) > 1:
                     removed = current_segments.pop(0)
                     current_char_len -= len(removed["text"]) + 1
 
         # Final chunk
-        if current_segments and estimate_tokens(current_char_len, settings["chunking"]["avg_chars_per_token"]) > 50:
+        if current_segments and estimate_tokens(current_char_len, settings["avg_chars_per_token"]) > 50:
             chunk_text = " ".join(s["text"] for s in current_segments)
             prompt = f"Summarize the following transcript segment in one concise sentence:\n\n{chunk_text}"
             summary = llm_service.generate(prompt).strip()

@@ -47,10 +47,6 @@ const statusIcons: Record<TaskStatus, React.ReactNode> = {
   failed: <XCircle className="h-4 w-4" />,
 };
 
-// ... (keep all the existing helper interfaces and components: TaskStepInfo, ParsedResult, 
-// parseTaskResult, TaskStepDisplay, EmbeddingResultDisplay, CompletedResultDisplay, 
-// TextResultDisplay, TaskResultDisplay, DeleteConfirmDialog - they remain unchanged)
-
 interface TaskStepInfo {
   step?: string;
   current_step?: number;

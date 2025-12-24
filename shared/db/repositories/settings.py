@@ -9,31 +9,11 @@ from shared.db.repositories.base import BaseRepository
 class SettingsRepository(BaseRepository[Settings]):
     def __init__(self, db: Session):
         super().__init__(Settings, db)
-        
+
     @staticmethod
     def get_settings_db(db: Session, component: str, section: Optional[str] = None) -> dict:
-        stmt = (
-            select(Settings.key, Settings.value, Settings.value_type)
-            .where(
-                Settings.component == component,
-            )
-        )
-
-        if section:
-            stmt.filter(Settings.section == section)
-
-        rows = db.execute(stmt).all()
-
-        def cast(v: str, t: str):
-            return {
-                "int": int,
-                "float": float,
-                "bool": lambda x: x.lower() == "true",
-                "string": str,
-            }[t](v)
-
-        return {key: cast(value, value_type) for key, value, value_type in rows}
-
+        return SettingsRepository(db).get_settings(component, section)
+        
     def get_settings(self, component: str, section: Optional[str] = None) -> dict:
         stmt = (
             select(Settings.key, Settings.value, Settings.value_type)
@@ -43,7 +23,7 @@ class SettingsRepository(BaseRepository[Settings]):
         )
 
         if section:
-            stmt.filter(Settings.section == section)
+            stmt = stmt.where(Settings.section == section)
 
         rows = self.db.execute(stmt).all()
 
